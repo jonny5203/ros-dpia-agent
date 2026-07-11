@@ -1,0 +1,37 @@
+# NSM Grunnprinsipper for IKT-sikkerhet v2.1 — machine-readable form.
+#
+# STATUS: PLACEHOLDER. This file is a skeleton only. The full 21 principles /
+# 118 measures (plus the ISO/IEC 27002:2022 crosswalk) are transcribed BY HAND
+# from the official source (https://nsm.no/gp-ikt) as a planned Phase 6 task.
+# Local-first ⇒ never fetched at runtime.
+#
+# Schema (to be filled in Phase 6):
+#   version: "2.1"
+#   source: https://nsm.no/gp-ikt
+#   curated_at: 2026-XX-XX
+#   categories:
+#     - id: identify
+#       label_nb: "Identifisere"
+#       principles:
+#         - id: GP-01
+#           label_nb: "..."
+#           measures:
+#             - id: GP-01.1
+#               text_nb: "..."
+#               iso27002_refs: ["..."]
+version: "2.1"
+source: https://nsm.no/gp-ikt
+curated_at: null
+categories:
+  - id: identify
+    label_nb: "Identifisere"
+    principles: []
+  - id: protect-and-maintain
+    label_nb: "Beskytte og vedlikeholde"
+    principles: []
+  - id: detect
+    label_nb: "Oppdage"
+    principles: []
+  - id: respond-and-recover
+    label_nb: "Håndtere og gjenopprette"
+    principles: []

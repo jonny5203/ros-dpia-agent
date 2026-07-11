@@ -1,0 +1,98 @@
+# Keycloak 26 — BFF / OIDC identity provider.
+#
+# Dev mode (`start-dev --import-realm`) imports the realm on first start only
+# (when /opt/keycloak/data is empty). The realm JSON is the kustomize-generated
+# `keycloak-realm` ConfigMap, sourced from infra/keycloak/realm-sandefjord.json.
+# KC_HEALTH_ENABLED=true exposes /health/ready (management interface port 9000).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.6
+          args: ["start-dev", "--import-realm", "--http-port=8080"]
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: mgmt
+              containerPort: 9000
+          env:
+            - name: KEYCLOAK_ADMIN
+              value: admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: admin
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            # Reverse-proxy fronting: Keycloak is reached by the browser as
+            # http://localhost:8081 (nginx NodePort). Without these, Keycloak
+            # guesses "localhost" (no port) from the Host header → issuer /
+            # redirect URIs / cookies all point at the wrong origin.
+            # KC_HOSTNAME must be a plain hostname or full URL (no bare host:port).
+            - name: KC_HOSTNAME
+              value: "localhost"
+            - name: KC_HOSTNAME_PORT
+              value: "8082"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/keycloak/data
+            - name: realm
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 9000 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /health/live, port: 9000 }
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: keycloak-data }
+        - name: realm
+          configMap:
+            name: keycloak-realm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30081

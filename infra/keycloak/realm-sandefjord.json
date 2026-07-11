@@ -1,0 +1,130 @@
+{
+  "realm": "sandefjord",
+  "enabled": true,
+  "sslRequired": "none",
+  "loginWithEmailAllowed": true,
+  "registrationAllowed": false,
+  "accessTokenLifespan": 300,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "roles": {
+    "realm": [
+      { "name": "default-roles-sandefjord", "composite": true, "clientRole": false, "containerId": "sandefjord" }
+    ]
+  },
+  "groups": [
+    { "name": "viewer", "path": "/viewer" },
+    { "name": "project-manager", "path": "/project-manager" },
+    { "name": "privacy-officer", "path": "/privacy-officer" },
+    { "name": "it-security", "path": "/it-security" },
+    { "name": "admin", "path": "/admin" }
+  ],
+  "clients": [
+    {
+      "clientId": "dpia-bff",
+      "name": "DPIA/ROS BFF (public PKCE client)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "oauth2.device.code.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true"
+      },
+      "redirectUris": [
+        "http://localhost/*",
+        "http://localhost:80/*",
+        "http://localhost:8081/*",
+        "http://localhost:8082/*",
+        "http://127.0.0.1/*"
+      ],
+      "webOrigins": ["http://localhost", "http://localhost:80", "http://localhost:8081", "http://localhost:8082"],
+      "defaultClientScopes": ["openid", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        },
+        {
+          "name": "audience-dpia-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "dpia-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "privacy.officer",
+      "enabled": true,
+      "email": "privacy@kommune.example",
+      "firstName": "Privacy",
+      "lastName": "Officer",
+      "emailVerified": true,
+      "groups": ["/privacy-officer"],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ]
+    },
+    {
+      "username": "it.security",
+      "enabled": true,
+      "email": "sec@kommune.example",
+      "firstName": "IT",
+      "lastName": "Security",
+      "emailVerified": true,
+      "groups": ["/it-security"],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ]
+    },
+    {
+      "username": "project.manager",
+      "enabled": true,
+      "email": "pm@kommune.example",
+      "firstName": "Project",
+      "lastName": "Manager",
+      "emailVerified": true,
+      "groups": ["/project-manager"],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@kommune.example",
+      "firstName": "App",
+      "lastName": "Admin",
+      "emailVerified": true,
+      "groups": ["/admin"],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ]
+    }
+  ]
+}

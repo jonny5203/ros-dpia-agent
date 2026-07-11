@@ -1,0 +1,55 @@
+# nginx web tier — serves the built SPA + reverse-proxies /api and /oidc.
+#
+# NodePort 30080 is mapped to host port 8081 by kind (infra/k8s/kind.yaml),
+# so the app is reachable at http://localhost:8081.
+#
+# frontend/nginx.conf proxies to `http://api:8000` and `http://keycloak:8080`;
+# those bare names resolve to the like-named in-namespace Services, so the nginx
+# config needs no change from the docker setup.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+    spec:
+      containers:
+        - name: web
+          image: dpia-ros-web:dev
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits:   { cpu: "200m", memory: "128Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

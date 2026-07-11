@@ -1,0 +1,28 @@
+# Kustomization for the DPIA/ROS local dev stack.
+#
+# Apply everything with:  kubectl apply -k infra/k8s
+#
+# The init-script ConfigMaps (minio-init-sh, keycloak-realm, pgcrypto-sql) are
+# created imperatively by `make k8s-up` from the infra/{minio,keycloak,initdb}
+# source files (single source of truth), because modern kustomize forbids
+# configMapGenerator from reading files outside this directory. See Makefile.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dpia-ros
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - qdrant.yaml
+  - redis.yaml
+  - minio.yaml
+  - keycloak.yaml
+  - api.yaml
+  - worker.yaml
+  - web.yaml
+  - minio-init-job.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: dpia-ros

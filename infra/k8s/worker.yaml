@@ -1,0 +1,29 @@
+# arq background worker — same image as the API, different command.
+# Loads .env from the dpia-secrets Secret. Redis URL (redis://redis:6379/0)
+# resolves via in-namespace DNS like in docker-compose.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+    spec:
+      containers:
+        - name: worker
+          image: dpia-ros-backend:dev
+          imagePullPolicy: Never
+          command: ["/usr/bin/tini", "--"]
+          args: ["arq", "app.workers.arq_app.WorkerSettings"]
+          envFrom:
+            - secretRef: { name: dpia-secrets }
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }

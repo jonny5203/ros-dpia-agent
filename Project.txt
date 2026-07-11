@@ -1,0 +1,1066 @@
+Yes — **file upload + RAG is exactly what makes idea 6 strong**.
+
+The Privacy / ROS / DPIA Assistant should **not** just be a generic chatbot that says “remember GDPR.” The impressive version is a **document-driven AI agent** where the user uploads project files, supplier documents, architecture notes, data-processing agreements, DPIA drafts, and municipal templates. Then the agent uses RAG to analyze the project against trusted guidance and internal routines.
+
+The key point:
+
+> **The AI should not “decide” whether Sandefjord is compliant. It should collect evidence, find gaps, generate draft risk documentation, and help humans complete ROS/DPIA faster.**
+
+That is much closer to how a kommune would actually use it.
+
+---
+
+# How this should work
+
+## 1. Two knowledge sources
+
+You should design it with **two separate RAG areas**.
+
+```text
+A. Permanent knowledge base
+   → Official guidance, templates, internal routines, checklists
+
+B. Project upload workspace
+   → Files uploaded for one specific project or procurement
+```
+
+This separation is important because the agent needs both:
+
+```text
+General rules and templates
++ actual project documentation
+= useful DPIA / ROS analysis
+```
+
+---
+
+# A. Permanent knowledge base
+
+This is the material the AI always has access to.
+
+For a Sandefjord-style demo, use:
+
+| Source type         | Example content                                                                 |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Legal/guidance      | GDPR Articles 5, 6, 9, 12–22, 30, 32, 35, 36                                    |
+| Datatilsynet        | DPIA guidance, AI/privacy guidance, checklist                                   |
+| Security guidance   | NSM grunnprinsipper, Digdir internkontroll/risk material                        |
+| Municipal templates | ROS template, DPIA template, data processing agreement checklist                |
+| Internal routines   | “How we assess new systems,” “how to classify data,” “how to handle deviations” |
+| Procurement docs    | Supplier security questionnaire, cloud assessment checklist                     |
+| AI governance       | AI usage policy, prompt logging policy, human review policy                     |
+
+Datatilsynet describes a DPIA as a process that should describe personal-data processing, assess necessity and proportionality, and help manage risks to individuals’ rights and freedoms. They also emphasize that DPIA is part of accountability and documentation, not a replacement for checking the basic legal requirements first. ([Datatilsynet][1])
+
+---
+
+# B. Project upload workspace
+
+This is where the user uploads files for a specific project.
+
+Example:
+
+```text
+Project: AI assistant for HSO employees
+
+Uploaded files:
+- System description.pdf
+- Supplier security questionnaire.docx
+- Data processing agreement.pdf
+- Architecture diagram.png
+- Draft DPIA.docx
+- ROS workshop notes.xlsx
+- Access control matrix.xlsx
+- Data flow description.md
+```
+
+The agent should then answer questions like:
+
+```text
+“Does this project require a DPIA?”
+
+“Which parts of the DPIA are missing?”
+
+“Extract all personal data categories from the uploaded documents.”
+
+“Find risks related to health data, logging, access control, storage, and supplier processing.”
+
+“Create a first draft of the ROS table.”
+
+“Compare the supplier’s DPA with our checklist.”
+
+“Which questions should we send back to the supplier?”
+```
+
+That is much more impressive than a normal chatbot.
+
+---
+
+# Important distinction
+
+You should explain this clearly in your project:
+
+| Method               |                                   What it means | Should you use it?                  |
+| -------------------- | ----------------------------------------------: | ----------------------------------- |
+| Normal prompt upload |       User uploads file and model reads it once | Good for demo, weak for real system |
+| RAG                  |   Files are indexed and retrieved when relevant | **Yes, core approach**              |
+| Fine-tuning          |         Training a model on municipal documents | Usually **no** for this use case    |
+| Agent workflow       | AI uses tools to extract, compare, score, draft | **Yes, but controlled**             |
+
+For this project, use **RAG + structured workflows**, not fine-tuning.
+
+You can say:
+
+> “We do not train the model on municipal documents. We store documents in a controlled project workspace, index them for retrieval, and retrieve only relevant chunks with citations when the user asks a question or runs an assessment.”
+
+That sounds much safer for a municipality.
+
+---
+
+# The best product concept
+
+Call it something like:
+
+## **Kommune DPIA & ROS Copilot**
+
+Or more portfolio-friendly:
+
+## **Municipal Privacy Risk Assistant**
+
+Main promise:
+
+> “Upload project documentation. The assistant extracts data flows, identifies missing privacy/security information, drafts DPIA and ROS sections, and gives human reviewers a structured decision basis.”
+
+---
+
+# Core workflow
+
+```text
+1. Create project
+   ↓
+2. Upload files
+   ↓
+3. AI extracts project facts
+   ↓
+4. AI compares facts against DPIA/ROS/checklist knowledge base
+   ↓
+5. AI finds missing information
+   ↓
+6. AI drafts DPIA screening
+   ↓
+7. AI drafts ROS risk register
+   ↓
+8. Human privacy/security officer reviews
+   ↓
+9. Export draft report
+```
+
+---
+
+# What the agent should extract from uploaded files
+
+This is the heart of the system.
+
+When files are uploaded, the AI should extract a structured project profile:
+
+```json
+{
+  "projectName": "AI assistant for HSO routines",
+  "purpose": "Help employees find internal routines faster",
+  "dataSubjects": [
+    "municipal employees",
+    "possibly citizens/patients if examples are uploaded"
+  ],
+  "personalDataCategories": [
+    "name",
+    "email",
+    "job role",
+    "chat logs",
+    "uploaded documents"
+  ],
+  "specialCategories": [
+    "health data if HSO case examples are used"
+  ],
+  "systems": [
+    "Azure OpenAI",
+    "Azure Blob Storage",
+    "Azure AI Search",
+    "Microsoft Entra ID"
+  ],
+  "processors": [
+    "Microsoft"
+  ],
+  "retention": "not clearly described",
+  "accessControl": "role-based access proposed",
+  "internationalTransfer": "unclear",
+  "automatedDecisionMaking": false,
+  "humanReview": true,
+  "openQuestions": [
+    "Will real health data be uploaded?",
+    "Are prompts and responses logged?",
+    "Where is the data stored?",
+    "Can Microsoft use data for model training?",
+    "How long are uploaded files retained?"
+  ]
+}
+```
+
+This lets you build a serious-looking assistant very quickly.
+
+---
+
+# The actual RAG setup
+
+## Document ingestion pipeline
+
+```text
+Upload file
+  ↓
+Virus/file-type check
+  ↓
+Store original file in Blob Storage
+  ↓
+Extract text
+  ↓
+Split into chunks
+  ↓
+Create embeddings
+  ↓
+Store vectors + metadata
+  ↓
+Make chunks searchable per project
+```
+
+Each chunk should include metadata:
+
+```json
+{
+  "chunkId": "doc-123-chunk-008",
+  "projectId": "project-001",
+  "documentName": "Supplier security questionnaire.pdf",
+  "documentType": "supplier_security",
+  "page": 4,
+  "section": "Logging and monitoring",
+  "uploadedBy": "project.manager@sandefjord.kommune.no",
+  "classification": "internal",
+  "createdAt": "2026-06-26T10:00:00Z"
+}
+```
+
+The agent should cite sources like:
+
+```text
+According to the uploaded supplier questionnaire, prompts and responses are retained for 30 days [Supplier security questionnaire.pdf, p. 4].
+```
+
+This is critical. A privacy officer will not trust an AI answer without traceability.
+
+---
+
+# Recommended architecture
+
+For speed and relevance to Sandefjord / municipal Microsoft environments:
+
+```text
+Frontend:
+- React, Angular, or Blazor
+- Project dashboard
+- File upload
+- Chat panel
+- DPIA/ROS report view
+
+Backend:
+- .NET 8/9 Minimal API
+- Authentication with Microsoft Entra ID
+- Project and document APIs
+- AI orchestration service
+
+Storage:
+- Azure Blob Storage for files
+- Azure SQL/PostgreSQL for project metadata
+- Azure AI Search for vector + keyword search
+
+AI:
+- Azure OpenAI for chat model
+- Azure OpenAI embeddings
+- RAG retrieval layer
+- Structured JSON extraction
+
+Security:
+- RBAC by project
+- Audit logs
+- No autonomous decisions
+- No model training on uploaded files
+- Retention controls
+```
+
+Simple version:
+
+```text
+React frontend
+→ .NET API
+→ Blob Storage
+→ Azure AI Search
+→ Azure OpenAI
+→ SQL metadata
+```
+
+---
+
+# The agent should have 5 main tools
+
+Do **not** start with 20 agents. Build one assistant with 5 controlled tools.
+
+## 1. `AnalyzeUploadedDocuments`
+
+Purpose:
+
+```text
+Extract project facts from uploaded files.
+```
+
+Output:
+
+```text
+Project summary
+Data categories
+Systems
+Processors
+Missing information
+Possible sensitive data
+```
+
+---
+
+## 2. `RunDpiaScreening`
+
+Purpose:
+
+```text
+Check whether the project likely needs DPIA.
+```
+
+It should not say:
+
+```text
+“DPIA is legally required.”
+```
+
+It should say:
+
+```text
+“Based on the uploaded information, this project has indicators that normally require DPIA review: use of health data, new technology, systematic logging, and supplier processing. A privacy officer should confirm.”
+```
+
+This aligns better with Datatilsynet’s framing that DPIA is a structured process for assessing processing, proportionality, and risks. ([Datatilsynet][1])
+
+---
+
+## 3. `GenerateRosRegister`
+
+Purpose:
+
+```text
+Create a risk table.
+```
+
+Example output:
+
+| Risk                          | Cause                       |              Consequence | Likelihood | Impact | Suggested measure                                                |
+| ----------------------------- | --------------------------- | -----------------------: | ---------: | -----: | ---------------------------------------------------------------- |
+| Sensitive data uploaded to AI | Users upload case documents |   Confidentiality breach |     Medium |   High | Block fødselsnummer/health data, warn user, classify uploads     |
+| Wrong DPIA advice             | AI hallucination            | Bad compliance decisions |     Medium | Medium | Require citations, human approval, “not legal advice” disclaimer |
+| Excessive prompt logging      | Logs store personal data    |           Privacy breach |     Medium |   High | Minimize logs, retention policy, access restrictions             |
+
+---
+
+## 4. `CompareAgainstChecklist`
+
+Purpose:
+
+```text
+Compare uploaded project with DPIA/ROS/supplier checklist.
+```
+
+Output:
+
+```text
+Complete:
+- Purpose is described
+- Supplier is identified
+
+Missing:
+- Retention period
+- Data location
+- Access control model
+- Logging policy
+- Subprocessor list
+- Data deletion process
+```
+
+---
+
+## 5. `DraftReport`
+
+Purpose:
+
+```text
+Generate a draft DPIA/ROS document.
+```
+
+Export formats:
+
+```text
+Markdown first
+DOCX later
+PDF last
+```
+
+For speed, start with Markdown export. DOCX/PDF can be added after the core demo works.
+
+---
+
+# What the UI should look like
+
+## Page 1: Project dashboard
+
+```text
+Project name: AI assistant for HSO routines
+Status: DPIA screening in progress
+Risk level: Needs privacy review
+Uploaded files: 7
+Missing info: 8 items
+Open risks: 12
+```
+
+---
+
+## Page 2: Upload center
+
+```text
+Upload project files:
+[ System description ]
+[ Supplier DPA ]
+[ Architecture diagram ]
+[ ROS notes ]
+[ DPIA draft ]
+[ Access control matrix ]
+```
+
+After upload:
+
+```text
+✓ Text extracted
+✓ Indexed for search
+✓ Personal data indicators found
+⚠ Possible health data found
+⚠ Retention period missing
+```
+
+---
+
+## Page 3: AI analysis
+
+User asks:
+
+```text
+“Analyze this project and tell me what is missing before we can complete a DPIA.”
+```
+
+Agent answers:
+
+```text
+I found 9 missing items:
+
+1. Legal basis is not described.
+2. Retention period for chat logs is missing.
+3. It is unclear whether uploaded files can contain health data.
+4. There is no description of access control.
+5. Supplier sub-processors are not listed.
+6. Data location is not documented.
+7. Logging and monitoring policy is incomplete.
+8. Human review responsibility is unclear.
+9. Deletion process is not described.
+
+Sources:
+- System description.pdf, p. 2
+- Supplier questionnaire.pdf, p. 4
+- Draft DPIA.docx, section 3
+```
+
+---
+
+## Page 4: ROS register
+
+A table the user can edit:
+
+```text
+Risk | Cause | Consequence | Existing controls | Suggested controls | Owner | Status
+```
+
+---
+
+## Page 5: Export
+
+```text
+Export:
+[ DPIA screening ]
+[ ROS register ]
+[ Supplier questions ]
+[ Project summary ]
+```
+
+---
+
+# Fastest MVP plan
+
+## Build this in 5–7 focused days
+
+### Day 1 — Skeleton
+
+Build:
+
+```text
+- Project dashboard
+- Create project
+- Upload files
+- Store files locally or in Azure Blob
+- Basic database schema
+```
+
+Use simple tables:
+
+```text
+Projects
+Documents
+DocumentChunks
+Analyses
+Risks
+ChecklistItems
+AuditLogs
+```
+
+Do not over-engineer auth on day 1. For a demo, you can simulate roles first.
+
+---
+
+### Day 2 — Document ingestion + RAG
+
+Build:
+
+```text
+- PDF/DOCX/TXT text extraction
+- Chunking
+- Embeddings
+- Vector search
+- Basic chat with citations
+```
+
+Minimum supported file types:
+
+```text
+PDF
+DOCX
+TXT/MD
+```
+
+Skip Excel until later unless you need ROS tables.
+
+---
+
+### Day 3 — Project fact extraction
+
+Build one button:
+
+```text
+“Analyze uploaded files”
+```
+
+It should produce:
+
+```json
+{
+  "purpose": "",
+  "dataSubjects": [],
+  "personalData": [],
+  "specialCategories": [],
+  "systems": [],
+  "processors": [],
+  "storage": "",
+  "retention": "",
+  "accessControl": "",
+  "missingInfo": []
+}
+```
+
+This is the first “wow” moment.
+
+---
+
+### Day 4 — DPIA screening
+
+Build:
+
+```text
+- DPIA questionnaire
+- AI-generated DPIA screening
+- “needs review” flag
+- missing-information list
+```
+
+The agent should use a cautious tone:
+
+```text
+“Likely requires privacy officer review”
+```
+
+Not:
+
+```text
+“Compliant / non-compliant”
+```
+
+---
+
+### Day 5 — ROS generator
+
+Build:
+
+```text
+- Risk register generator
+- Editable risk rows
+- Suggested mitigation measures
+- Risk score
+```
+
+Keep scoring simple:
+
+```text
+Likelihood: 1–5
+Consequence: 1–5
+Risk score = likelihood × consequence
+```
+
+---
+
+### Day 6 — Export and demo data
+
+Build:
+
+```text
+- Markdown export
+- Optional DOCX export
+- Seed demo files
+- Nice sample project
+```
+
+Your demo project should be:
+
+```text
+“AI assistant for HSO internal routines”
+```
+
+That connects perfectly to Sandefjord because HSO digitalization is a real municipal area.
+
+---
+
+### Day 7 — Polish
+
+Add:
+
+```text
+- Citations
+- Audit log page
+- Role labels
+- Risk badges
+- Better styling
+- README
+- Architecture diagram
+- Demo script
+```
+
+---
+
+# What to skip for speed
+
+Do **not** build these in the first MVP:
+
+```text
+Full multi-agent framework
+Real ACOS integration
+Real Microsoft Graph permissions
+Complex Entra tenant setup
+Advanced workflow engine
+Full PDF rendering
+Automatic legal conclusion engine
+Real personal data
+Fine-tuning
+```
+
+For the portfolio, fake integrations are fine as long as you label them clearly.
+
+---
+
+# The best demo scenario
+
+Use this exact scenario:
+
+## Project
+
+```text
+Sandefjord Kommune wants to test an internal AI assistant for HSO employees.
+The assistant answers questions from internal routines and uploaded procedure documents.
+Employees may accidentally upload documents containing patient or citizen information.
+The solution uses Azure OpenAI, Blob Storage, Azure AI Search, and Entra ID.
+```
+
+## Uploaded files
+
+Create synthetic files:
+
+```text
+1. Systembeskrivelse - HSO AI Assistant.pdf
+2. Leverandørens sikkerhetsspørsmål.docx
+3. Databehandleravtale - utkast.docx
+4. ROS workshop notes.md
+5. Tilgangsstyring matrix.xlsx
+6. DPIA draft.docx
+7. Logging and retention policy.md
+```
+
+## User asks
+
+```text
+“Analyze this project and prepare a DPIA screening and ROS draft.”
+```
+
+## Agent returns
+
+```text
+- Project summary
+- Personal data overview
+- Missing documentation
+- DPIA trigger indicators
+- ROS risk table
+- Supplier follow-up questions
+- Suggested technical and organizational measures
+```
+
+That demo would be very strong.
+
+---
+
+# The most important feature: gap finding
+
+The agent should not only answer questions. It should say:
+
+```text
+“I cannot complete this assessment because the uploaded files do not explain X, Y, and Z.”
+```
+
+For DPIA/ROS, missing information is often the real value.
+
+Examples:
+
+```text
+Missing information:
+- No retention period for prompts/responses
+- No statement about model training
+- No subprocessor list
+- No access control description
+- No deletion procedure
+- No data location
+- No incident response process
+- No DPIA owner
+- No human review responsibility
+```
+
+This is what makes the tool useful to privacy officers and project managers.
+
+---
+
+# Safety design
+
+For a kommune, the assistant should have clear guardrails:
+
+```text
+The assistant may:
+- summarize uploaded documents
+- identify missing information
+- draft DPIA/ROS text
+- suggest questions for supplier
+- suggest risk-reducing measures
+- cite sources
+
+The assistant may not:
+- approve a DPIA
+- declare legal compliance
+- make decisions about citizens
+- process real health data in a demo
+- send documents externally without approval
+- modify official records automatically
+```
+
+The EU AI Act uses a risk-based approach, and the Commission describes high-risk AI systems as subject to strict obligations before market placement; public-sector deployers of high-risk AI also have specific obligations around oversight, registration, and impact assessment depending on use case. ([Digital Strategy][2])
+
+---
+
+# Security architecture for upload + RAG
+
+For the project, describe security like this:
+
+```text
+1. Files are stored per project.
+2. Each project has its own access control.
+3. Uploaded files are not used to train the model.
+4. Retrieval is scoped to the current project and user permissions.
+5. All answers include citations.
+6. All analysis actions are audit logged.
+7. Sensitive data detection runs on upload.
+8. Retention policy controls when files and embeddings are deleted.
+9. Human approval is required before exporting or using the report.
+```
+
+Important:
+
+```text
+Deleting a file must also delete:
+- original file
+- extracted text
+- vector chunks
+- analysis outputs
+- generated draft reports, unless archived intentionally
+```
+
+This shows you understand that RAG creates derived data.
+
+---
+
+# Minimal database schema
+
+Use this:
+
+```sql
+Projects
+- Id
+- Name
+- Description
+- CreatedBy
+- CreatedAt
+- Status
+- Classification
+
+Documents
+- Id
+- ProjectId
+- FileName
+- FileType
+- BlobPath
+- UploadedBy
+- UploadedAt
+- Classification
+- ProcessingStatus
+
+DocumentChunks
+- Id
+- DocumentId
+- ProjectId
+- ChunkText
+- PageNumber
+- SectionTitle
+- EmbeddingId
+- MetadataJson
+
+Analyses
+- Id
+- ProjectId
+- AnalysisType
+- ResultJson
+- CreatedBy
+- CreatedAt
+
+Risks
+- Id
+- ProjectId
+- Title
+- Cause
+- Consequence
+- Likelihood
+- Impact
+- Score
+- Mitigation
+- Owner
+- Status
+- SourceReferencesJson
+
+ChecklistItems
+- Id
+- ProjectId
+- Category
+- Question
+- Status
+- Evidence
+- SourceReferencesJson
+
+AuditLogs
+- Id
+- ProjectId
+- UserId
+- Action
+- Timestamp
+- MetadataJson
+```
+
+---
+
+# Suggested API endpoints
+
+```http
+POST   /api/projects
+GET    /api/projects/{id}
+
+POST   /api/projects/{id}/documents
+GET    /api/projects/{id}/documents
+DELETE /api/projects/{id}/documents/{documentId}
+
+POST   /api/projects/{id}/analyze
+POST   /api/projects/{id}/chat
+POST   /api/projects/{id}/dpia-screening
+POST   /api/projects/{id}/ros
+POST   /api/projects/{id}/supplier-questions
+
+GET    /api/projects/{id}/risks
+PATCH  /api/projects/{id}/risks/{riskId}
+
+GET    /api/projects/{id}/export/markdown
+GET    /api/projects/{id}/audit-log
+```
+
+---
+
+# Prompt structure
+
+Use system prompts that force caution.
+
+## System prompt
+
+```text
+You are a municipal privacy and information-security assistant.
+
+You help project managers, privacy officers, and IT staff prepare DPIA, ROS, and supplier follow-up documentation.
+
+You must not make final legal decisions.
+You must not declare a project compliant.
+You must identify uncertainty and missing information.
+You must cite uploaded documents or trusted guidance when making claims.
+You must distinguish between evidence found in documents and your own suggested follow-up questions.
+```
+
+## Analysis prompt
+
+```text
+Analyze the uploaded project documents.
+
+Extract:
+1. Project purpose
+2. Processing activities
+3. Data subjects
+4. Personal data categories
+5. Special categories of personal data
+6. Systems and suppliers
+7. Storage and transfer
+8. Access control
+9. Logging and retention
+10. Security measures
+11. Missing information
+12. Possible DPIA trigger indicators
+13. Suggested ROS risks
+
+Return structured JSON.
+Use citations to source chunks where possible.
+Do not conclude legal compliance.
+```
+
+---
+
+# The fastest technical stack
+
+For you, I would choose:
+
+```text
+Frontend:
+React + TypeScript
+
+Backend:
+.NET 8 Minimal API
+
+AI:
+Azure OpenAI
+
+RAG:
+Azure AI Search
+
+Storage:
+Azure Blob Storage
+
+Database:
+PostgreSQL or Azure SQL
+
+Auth:
+Start with mock users
+Add Microsoft Entra ID later
+
+Export:
+Markdown first
+DOCX later
+```
+
+The fastest path is **not** a complex autonomous agent framework. The fastest path is:
+
+```text
+RAG
++ structured extraction
++ deterministic workflow buttons
++ good UI
++ good demo data
+```
+
+That will look more professional than a messy “agent swarm.”
+
+---
+
+# What to say in an interview
+
+Use this wording:
+
+> “I designed the assistant around uploaded project documentation and RAG, because privacy and ROS work depends on evidence. A generic AI answer is not enough. The system indexes project files, extracts data flows and missing information, compares them against trusted DPIA and security checklists, and drafts ROS/DPIA material for human review. It does not approve anything or make legal decisions.”
+
+Then:
+
+> “The point is not to replace the privacy officer. The point is to reduce the time spent reading scattered project documents, finding missing supplier information, and drafting the first version of risk documentation.”
+
+That is a very mature answer.
+
+---
+
+# My recommendation
+
+Build **upload + RAG first**.
+
+The MVP order should be:
+
+```text
+1. Project creation
+2. File upload
+3. RAG with citations
+4. Project fact extraction
+5. Missing information detector
+6. DPIA screening draft
+7. ROS risk register generator
+8. Markdown/DOCX export
+```
+
+That is the quickest route to a portfolio demo that feels real for Sandefjord Kommune.
+
+[1]: https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdere-personvernkonsekvenser/ "Veiledning om DPIA | Datatilsynet"
+[2]: https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai "AI Act | Shaping Europe’s digital future"

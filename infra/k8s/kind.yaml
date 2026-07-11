@@ -1,0 +1,23 @@
+# kind cluster config for the DPIA/ROS local dev stack.
+#
+# Maps a single host port (8081 -> container 30080) so the `web` NodePort Service
+# is reachable at http://localhost:8081. All other services stay cluster-internal.
+#
+# Create with:  kind create cluster --config infra/k8s/kind.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: dpia-ros
+nodes:
+  - role: control-plane
+    # Host port 8081 → web (nginx SPA + /api proxy).
+    # Host port 8082 → keycloak (browser-facing OIDC, own origin so it
+    # generates correct absolute redirect URIs / form actions).
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8081
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+      - containerPort: 30081
+        hostPort: 8082
+        listenAddress: "127.0.0.1"
+        protocol: TCP

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.vite/
+.env
+.env.*
+.git/
+.gitignore
+*.log

@@ -1,0 +1,41 @@
+# MinIO bucket seeder — k8s Job mirroring the old docker-compose `minio-init`
+# sidecar. Runs `infra/minio/init.sh` (via the kustomize-generated `minio-init-sh`
+# ConfigMap) once minio is reachable, creates the kommune-docs bucket
+# idempotently, then exits.
+#
+# The Job is re-created (and re-runs) whenever the script ConfigMap hash changes
+# or when applied fresh (kubectl apply re-applies but completed Jobs aren't
+# re-run automatically — re-run with `make k8s-minio-init` after a config change).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-init
+          image: minio/mc:latest
+          command: ["/bin/sh"]
+          args: ["-c", "sh /etc/minio/init.sh"]
+          env:
+            - name: MINIO_ENDPOINT
+              valueFrom: { secretKeyRef: { name: dpia-secrets, key: MINIO_ENDPOINT } }
+            - name: MINIO_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: dpia-secrets, key: MINIO_ACCESS_KEY } }
+            - name: MINIO_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: dpia-secrets, key: MINIO_SECRET_KEY } }
+            - name: MINIO_BUCKET
+              valueFrom: { secretKeyRef: { name: dpia-secrets, key: MINIO_BUCKET } }
+          volumeMounts:
+            - name: init
+              mountPath: /etc/minio
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: minio-init-sh
+            defaultMode: 0755

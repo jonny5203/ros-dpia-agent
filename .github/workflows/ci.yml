@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Run gitleaks
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            zricethezav/gitleaks:latest detect \
+            --source=/repo --no-banner --redact --verbose
+
+  backend:
+    name: Backend (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen --extra dev || uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run mypy app
+      - run: uv run pytest -q
+
+  frontend:
+    name: Frontend (tsc, eslint, build)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: frontend/package-lock.json }
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx eslint src --max-warnings=0
+      - run: npm run build
+
+  k8s-validate:
+    name: Kubernetes manifests valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No cluster needed — kustomize renders the manifests in-memory for validation.
+      - uses: azure/setup-kubectl@v4
+      - run: kubectl kustomize infra/k8s >/dev/null

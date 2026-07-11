@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# pre-commit secret guard for the DPIA/ROS Copilot monorepo.
+# Active because `git config core.hooksPath .githooks` is set (see README).
+#
+# Two jobs:
+#   1. Block real env files (.env, .env.*) from being committed. .env.example is allowed.
+#   2. Scan staged *additions* for high-signal secret patterns, ignoring obvious placeholders.
+#
+# This is a BACKSTOP, not a scanner. Known limits (covered by layer 1 .gitignore and
+# layer 3 CI gitleaks): secrets split across multiple lines, secrets inside binary
+# files (git emits no +content for them), and high-entropy values under unknown names.
+# Never put a real secret in a tracked file.
+set -euo pipefail
+
+status=0
+say() { printf '\033[31m[pre-commit] %s\033[0m\n' "$*" >&2; }
+
+# ── 1. Path check: never commit a real env file ─────────────────────────────
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  case "$(basename "$f")" in
+    .env|.env.local|.env.production|.env.development|.env.*.local)
+      say "Refusing to commit env file: $f (only .env.example is tracked)."
+      status=1
+      ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+# ── 2. Content check: scan added lines for secret patterns ──────────────────
+# Placeholder markers — if a matched line contains one, treat the value as a sample.
+# Kept NARROW on purpose: bare words like 'test'/'dev'/'changeme' are NOT here, because
+# a real secret containing them must still be blocked. Match real placeholders only.
+ALLOW='REPLACE-ME|change[-_]me|generate-a|your-|<.+>|\.\.\.|placeholder|example\.com|kommune\.example'
+
+# Each rule: "label|perl_regex". Patterns are passed with `grep -e` so a leading
+# dash (e.g. "-----BEGIN") is treated as the pattern, not a grep flag.
+RULES=(
+  "OpenRouter API key|sk-or-v1-[A-Za-z0-9-]{20,}"
+  "PEM private key|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+  "AWS access key id|AKIA[0-9A-Z]{16}"
+  "GitHub token|gh[psu]_[A-Za-z0-9]{36,}"
+  "Google API key|AIza[0-9A-Za-z_-]{35}"
+  "Stripe key|sk_(live|test)_[A-Za-z0-9]{20,}"
+  "Slack token|xox[baprs]-[A-Za-z0-9-]{12,}"
+  "JWT / secret token|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
+  "Credentials in URL|[a-z][a-z0-9+.-]*://[^/[:space:]:@]+:[^@[:space:]]{6,}@[^[:space:]/]+"
+)
+
+# Generic: NAME=long-secret for the project's known secret env vars. Value class is
+# deliberately narrow (no ':'/'@') so a documented `DATABASE_URL=postgresql+asyncpg://…`
+# placeholder is NOT matched — real connection strings are caught by the Credentials-in-URL rule.
+GENERIC_SECRET_ENV='(OPENROUTER_API_KEY|MINIO_SECRET_KEY|POSTGRES_PASSWORD|APP_SECRET_KEY|KEYCLOAK_CLIENT_SECRET|DATABASE_URL)[[:space:]]*[:=][[:space:]]*["'\'']?([A-Za-z0-9/+=._-]{20,})'
+
+# Gather added lines only (across all staged text files; binaries produce no +content).
+mapfile -t ADDED < <(
+  git diff --cached --no-color --diff-filter=ACM --unified=0 |
+  sed -n 's/^+//p' | grep -vE '^\+\+' || true
+)
+
+scan() {
+  local label="$1" pat="$2"
+  local hits
+  hits=$(printf '%s\n' "${ADDED[@]}" | grep -E -n -e "$pat" 2>/dev/null || true)
+  [ -z "$hits" ] && return 0
+  # Drop matches whose value looks like a placeholder.
+  local real
+  real=$(printf '%s\n' "$hits" | grep -vE -e "$ALLOW" 2>/dev/null || true)
+  if [ -n "$real" ]; then
+    say "Possible $label in staged changes:"
+    printf '%s\n' "$real" | head -10 >&2
+    status=1
+  fi
+}
+
+for rule in "${RULES[@]}"; do
+  IFS='|' read -r label pat <<< "$rule"
+  scan "$label" "$pat"
+done
+
+# Generic secret-name check.
+scan "hardcoded secret value" "$GENERIC_SECRET_ENV"
+
+if [ "$status" -ne 0 ]; then
+  say "Commit blocked: likely secret detected. Remove the secret, or if this is a false"
+  say "positive, re-run with:  git commit --no-verify   (and tell the team why)."
+  exit 1
+fi
+
+exit 0

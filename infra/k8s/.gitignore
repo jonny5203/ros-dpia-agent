@@ -1,0 +1,2 @@
+# Generated locally by `make k8s-up` from .env; never commit.
+secret.yaml
