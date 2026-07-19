@@ -12,12 +12,15 @@ import logging
 import secrets
 from typing import Any
 
+from app.auth.jwks import decode_access_token
+from app.repositories.user import UserRepository
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_current_user
-from app.auth.models import SK_ACCESS, SK_EXP, SK_ID, SK_REFRESH, SK_STATE, SK_VERIFIER
+from app.auth.models import SK_ACCESS, SK_EXP, SK_ID, SK_REFRESH, SK_STATE, SK_VERIFIER, AppRole, resolve_role
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -181,3 +184,22 @@ async def logout(request: Request) -> RedirectResponse:
 
     end_session = httpx.URL(settings.keycloak_end_session_endpoint, params=params)
     return RedirectResponse(url=str(end_session), status_code=302)
+
+
+async def _persist_user(request: Request, session: AsyncSession) -> None:
+    """ Upsert the logged-in user into the users table."""
+    access = request.session.get(SK_ACCESS)
+    if not access:
+        return
+    claims = decode_access_token(access)
+    role = resolve_role(claims.groups)
+    user_repo = UserRepository(session)
+
+    await user_repo.upsert(
+        oidc_sub=claims.sub or claims.preferred_username or "unknown",
+        email=claims.email or "",
+        display_name=" ".join(filter(None, [claims.given_name, claims.family_name])) or claims.preferred_username or "unknown",
+        app_role=role.value,
+        is_admin=(role == AppRole.ADMIN)
+    )
+    await session.commit()
