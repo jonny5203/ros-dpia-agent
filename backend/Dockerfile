@@ -22,6 +22,8 @@ RUN uv pip install --system .
 
 # Application code.
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
 
 # Drop root.
 RUN useradd --create-home --uid 1000 appuser \

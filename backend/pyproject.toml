@@ -5,7 +5,6 @@ description = "Kommune DPIA & ROS Copilot — FastAPI backend"
 requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
-  # --- Phase 0: enough to boot, serve /api/health, run the arq worker, talk to OpenRouter ---
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.9",
@@ -15,13 +14,21 @@ dependencies = [
   "redis>=5.0",
   "pyjwt[crypto]>=2.9",
   "itsdangerous>=2.2",
-  # --- Phase 1+ (added when the phase that needs them lands) -------------------
-  # Phase 1 (auth/rbac):     (deps above; pyjwt for JWKS validation, itsdangerous for cookie signing)
-  # Phase 2 (storage):       "aioboto3>=13"
-  # Phase 2/3 (db/migrations): "sqlalchemy[asyncio]>=2.0", "asyncpg>=0.29", "alembic>=1.13"
-  # Phase 3 (ingestion/vec): "qdrant-client>=1.12", "PyMuPDF4LLM>=0.0.17", "python-docx>=1.1",
-  #                          "openpyxl>=3.1", "presidio-analyzer>=2.2", "tiktoken>=0.7"
-  # Phase 4+ (LLM):          "instructor>=1.4"
+  "aioboto3>=13",
+  "sqlalchemy[asyncio]>=2.0",
+  "asyncpg>=0.29",
+  "alembic>=1.13",
+  "qdrant-client>=1.12",
+  "docling-slim[feat-ocr-rapidocr-onnx,format-pdf,models-local]>=2.111.0,<3",
+  "pypdf>=6.14.2,<7",
+  "torch>=2.9,<3",
+  "torchvision>=0.24,<1",
+  "python-docx>=1.1",
+  "openpyxl>=3.1",
+  "presidio-analyzer>=2.2",
+  "tiktoken>=0.7",
+  "instructor>=1.4",
+  "python-multipart>=0.0.32",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +70,12 @@ check_untyped_defs = true
 asyncio_mode = "auto"
 testpaths = ["app/tests"]
 addopts = "-q"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]

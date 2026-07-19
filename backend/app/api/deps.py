@@ -5,13 +5,23 @@ from __future__ import annotations
 import logging
 import time
 
+from app.repositories.project import ProjectRepository
+from app.repositories.user import UserRepository
 import httpx
 from fastapi import Depends, HTTPException, Request
+from qdrant_client import AsyncQdrantClient
+from dataclasses import dataclass
+from uuid import UUID
 
 from app.ai.providers.openrouter import OpenRouterClient
 from app.auth.jwks import TokenError, decode_access_token
 from app.auth.models import SK_ACCESS, SK_EXP, SK_REFRESH, AppRole, resolve_role
 from app.core.config import get_settings
+from app.services.storage import StorageService
+from app.db.models import Projects
+from app.db.session import get_session
+from app.repositories.member import ProjectMemberRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +131,48 @@ def require_role(*allowed: AppRole):
         return user
 
     return _check
+
+def get_qdrant(request: Request) -> AsyncQdrantClient:
+    return request.app.state.qdrant
+
+def get_storage(request: Request) -> StorageService:
+    return request.app.state.storage
+
+@dataclass
+class ProjectContext:
+    project: Projects
+    user_db_id: UUID
+    member_role: str
+
+async def get_project_context(
+    project_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProjectContext:
+    """ Resolve a project + verify the user is a member.
+    Returns 404(not 403) on non-membership to prevent enumeration.
+    """
+
+    user_repo = UserRepository(session)
+    db_user = await user_repo.get_by_id(project_id)
+
+    if db_user in None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project_repo = ProjectRepository(session)
+    project = await project_repo.get_by_id(project_id)
+
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    member_repo = ProjectMemberRepository(session)
+    member = await member_repo.get(project_id, db_user.id)
+
+    if member is None and not user.is_admin:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return ProjectContext(
+        project=project,
+        user_db_id=db_user.id,
+        member_role=member.role if member else "admin",
+    )

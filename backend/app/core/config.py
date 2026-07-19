@@ -121,6 +121,10 @@ class Settings(BaseSettings):
         # The redirect_uri Keycloak sends the browser back to after login.
         return f"{self.public_base_url}/auth/callback"
 
+    @property
+    def minio_secret_key_value(self) -> str:
+        return self.minio_access_key.get_secret_value()
+
 
 @lru_cache
 def get_settings() -> Settings:
