@@ -15,11 +15,12 @@ WEB_PORT     := 8081
 ROLLOUT_TARGETS := postgres qdrant redis minio keycloak api worker web
 
 .PHONY: help require-env k8s-cluster k8s-namespace k8s-build k8s-load k8s-secret k8s-configmaps \
-        k8s-apply k8s-up k8s-down k8s-ps k8s-logs \
+        k8s-apply k8s-up k8s-redeploy k8s-down k8s-ps k8s-logs \
         k8s-api-sh k8s-worker-sh k8s-web-sh \
         backend-lint backend-test \
         frontend-install frontend-lint frontend-build \
-        check-secrets k8s-clean k8s-minio-init k8s-nuke git-init
+        check-secrets k8s-clean k8s-minio-init k8s-nuke git-init \
+        db-migrate db-current db-shell db-forward db-revision
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) \
@@ -75,6 +76,13 @@ k8s-up: require-env k8s-namespace k8s-load k8s-configmaps k8s-secret k8s-apply #
 > done
 > @echo "[make] ✅ stack is up — web at http://localhost:$(WEB_PORT)"
 > @echo "       health: curl -s http://localhost:$(WEB_PORT)/api/health | jq ."
+
+k8s-redeploy: k8s-load ## Rebuild + reload image, then restart api + worker pods to pick it up
+> @echo "[make] restarting api + worker to pick up the new image..."
+> @kubectl -n $(NAMESPACE) rollout restart deployment/api deployment/worker
+> @kubectl -n $(NAMESPACE) rollout status deployment/api --timeout=180s
+> @kubectl -n $(NAMESPACE) rollout status deployment/worker --timeout=180s
+> @echo "[make] ✅ redeployed — new image is live"
 
 # ── Day-to-day ops ──────────────────────────────────────────────────────────
 
@@ -143,3 +151,24 @@ k8s-nuke: ## Delete the kind cluster entirely (cluster + everything in it)
 > @read -r -p "Delete the kind cluster '$(CLUSTER)' entirely? [y/N] " ans; \
 > [ "$$ans" = "y" ] || { echo "aborted"; exit 1; }
 > kind delete cluster --name $(CLUSTER)
+
+# ── Database / migrations ────────────────────────────────────────────────────
+# Migrations run inside the api pod (where alembic lives, DATABASE_URL configured).
+# psql runs inside the postgres pod (where psql exists).
+
+db-migrate: ## Apply pending migrations (alembic upgrade head) inside the api pod
+> @kubectl -n $(NAMESPACE) exec deployment/api -- alembic upgrade head
+
+db-revision: ## Create a new migration. Usage: make db-revision m="add_users_table"
+> @test -n "$(m)" || { echo "Usage: make db-revision m=\"<message>\""; exit 1; }
+> @kubectl -n $(NAMESPACE) exec deployment/api -- alembic revision -m "$(m)"
+
+db-current: ## Show current alembic version + pending migrations
+> @kubectl -n $(NAMESPACE) exec deployment/api -- sh -c 'echo "== current ==" && alembic current && echo "== heads ==" && alembic heads'
+
+db-shell: ## psql inside the postgres pod
+> @kubectl -n $(NAMESPACE) exec -it deployment/postgres -- psql -U dpia -d dpia
+
+db-forward: ## Port-forward Postgres to localhost:5432 (run psql locally)
+> @echo "[make] forwarding postgres:5432 -> localhost:5432 (Ctrl+C to stop)"
+> @kubectl -n $(NAMESPACE) port-forward svc/postgres 5432:5432

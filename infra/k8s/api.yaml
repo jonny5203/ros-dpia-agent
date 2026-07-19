@@ -22,6 +22,22 @@ spec:
       labels:
         app.kubernetes.io/name: api
     spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            [
+              "sh",
+              "-c",
+              "until pg_isready -h postgres -p 5432; do sleep 2; done",
+            ]
+        - name: run-migrations
+          image: dpia-ros-backend:dev
+          imagePullPolicy: Never
+          command: ['alembic', 'upgrade', 'head']
+          envFrom:
+            - secretRef: { name: dpia-secrets }
+
       containers:
         - name: api
           image: dpia-ros-backend:dev
@@ -56,9 +72,6 @@ spec:
             # In-cluster, requests come from any pod IP — accept all forwarded.
             - name: FORWARDED_ALLOW_IPS
               value: "*"
-            # In-cluster, requests come from any pod IP — accept all forwarded.
-            - name: FORWARDED_ALLOW_IPS
-              value: "*"
           readinessProbe:
             httpGet: { path: /api/health, port: 8000 }
             initialDelaySeconds: 15
@@ -71,7 +84,7 @@ spec:
             periodSeconds: 15
           resources:
             requests: { cpu: "100m", memory: "256Mi" }
-            limits:   { cpu: "1000m", memory: "1Gi" }
+            limits: { cpu: "1000m", memory: "1Gi" }
 ---
 apiVersion: v1
 kind: Service
