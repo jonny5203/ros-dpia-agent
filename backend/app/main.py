@@ -6,19 +6,19 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from app.services.storage import StorageService
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from qdrant_client import AsyncQdrantClient
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.ai.providers.openrouter import OpenRouterClient
-from app.api.v1 import admin, health, documents, projects
+from app.api.v1 import admin, documents, health, projects
 from app.auth.router import router as auth_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.db.session import engine
-from qdrant_client import AsyncQdrantClient
+from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 

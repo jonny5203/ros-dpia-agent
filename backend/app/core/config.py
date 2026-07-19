@@ -123,7 +123,7 @@ class Settings(BaseSettings):
 
     @property
     def minio_secret_key_value(self) -> str:
-        return self.minio_access_key.get_secret_value()
+        return self.minio_secret_key.get_secret_value()
 
 
 @lru_cache

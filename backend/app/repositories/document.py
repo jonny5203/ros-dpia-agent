@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Documents
 
+
 class DocumentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -27,7 +28,8 @@ class DocumentRepository:
             filename=filename,
             mime=mime,
             ext=ext,
-            s3_key="", #set after the doc ID is known, because that Id will be used to create and entry in the bucker
+            # s3_key set after flush, when the doc id is known
+            s3_key="",
             sha256=sha256,
             classification_id=classification_id,
             processing_status_id=processing_status_id,
@@ -47,13 +49,17 @@ class DocumentRepository:
     async def list_documents_for_projects(self, project_id: UUID) -> list[Documents]:
         stmt = select(Documents).where(Documents.project_id == project_id)
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def delete(self, doc: Documents) -> None:
         await self.session.delete(doc)
         await self.session.flush()
 
-    async def get_doc_by_sha256(self, project_id: UUID, sha256: str) -> Documents | None:
-        stmt = select(Documents).where(Documents.project_id == project_id, Documents.sha256 == sha256)
+    async def get_doc_by_sha256(
+        self, project_id: UUID, sha256: str
+    ) -> Documents | None:
+        stmt = select(Documents).where(
+            Documents.project_id == project_id, Documents.sha256 == sha256
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

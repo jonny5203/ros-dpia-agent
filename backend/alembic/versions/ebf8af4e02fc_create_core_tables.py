@@ -5,17 +5,17 @@ Revises:
 Create Date: 2026-07-14 02:06:47.741039
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'ebf8af4e02fc'
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -44,7 +44,12 @@ def upgrade() -> None:
     sa.Column('display_name', sa.String(length=255), nullable=False),
     sa.Column('app_role', sa.String(length=255), nullable=False),
     sa.Column('is_admin', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column(
+        'created_at',
+        sa.DateTime(timezone=True),
+        server_default=sa.text('now()'),
+        nullable=False,
+    ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('projects',
@@ -56,7 +61,12 @@ def upgrade() -> None:
     sa.Column('classification_id', sa.Uuid(), nullable=False),
     sa.Column('embed_id', sa.Uuid(), nullable=False),
     sa.Column('preferred_model', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column(
+        'created_at',
+        sa.DateTime(timezone=True),
+        server_default=sa.text('now()'),
+        nullable=False,
+    ),
     sa.Column('created_by', sa.Uuid(), nullable=False),
     sa.ForeignKeyConstraint(['classification_id'], ['classification.id'], ),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
@@ -75,7 +85,12 @@ def upgrade() -> None:
     sa.Column('classification_id', sa.Uuid(), nullable=False),
     sa.Column('processing_status_id', sa.Uuid(), nullable=False),
     sa.Column('uploaded_by', sa.Uuid(), nullable=False),
-    sa.Column('uploaded_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column(
+        'uploaded_at',
+        sa.DateTime(timezone=True),
+        server_default=sa.text('now()'),
+        nullable=False,
+    ),
     sa.ForeignKeyConstraint(['classification_id'], ['classification.id'], ),
     sa.ForeignKeyConstraint(['processing_status_id'], ['processing_status.id'], ),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
@@ -86,7 +101,12 @@ def upgrade() -> None:
     sa.Column('project_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('role', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column(
+        'created_at',
+        sa.DateTime(timezone=True),
+        server_default=sa.text('now()'),
+        nullable=False,
+    ),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('project_id', 'user_id')

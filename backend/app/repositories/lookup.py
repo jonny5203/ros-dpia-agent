@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Classification, Embed, ProcessingStatus
 
+
 class LookupRepository:
     """Resolves normalized lookup-table names to their UUIDs."""
 

@@ -4,24 +4,24 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass
+from uuid import UUID
 
-from app.repositories.project import ProjectRepository
-from app.repositories.user import UserRepository
 import httpx
 from fastapi import Depends, HTTPException, Request
 from qdrant_client import AsyncQdrantClient
-from dataclasses import dataclass
-from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.providers.openrouter import OpenRouterClient
 from app.auth.jwks import TokenError, decode_access_token
 from app.auth.models import SK_ACCESS, SK_EXP, SK_REFRESH, AppRole, resolve_role
 from app.core.config import get_settings
-from app.services.storage import StorageService
 from app.db.models import Projects
 from app.db.session import get_session
 from app.repositories.member import ProjectMemberRepository
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.repositories.project import ProjectRepository
+from app.repositories.user import UserRepository
+from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -154,9 +154,9 @@ async def get_project_context(
     """
 
     user_repo = UserRepository(session)
-    db_user = await user_repo.get_by_id(project_id)
+    db_user = await user_repo.get_by_oidc_sub(user.sub)
 
-    if db_user in None:
+    if db_user is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     project_repo = ProjectRepository(session)

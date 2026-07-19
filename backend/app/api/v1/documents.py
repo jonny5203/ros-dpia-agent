@@ -5,11 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from qdrant_client import AsyncQdrantClient
 
-from app.api.deps import CurrentUser, get_current_user, get_session, get_storage, get_qdrant
+from app.api.deps import CurrentUser, get_current_user, get_session, get_storage
 from app.db.models import Documents
-from app.repositories import DocumentRepository, LookupRepository, UserRepository
+from app.repositories import UserRepository
 from app.schemas import DocumentRead
 from app.services.document import DocumentService
 from app.services.storage import StorageService

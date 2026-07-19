@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
 
 class ProjectCreate(BaseModel):
     """ Shared fields use by Create and Update. """

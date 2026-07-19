@@ -5,18 +5,18 @@ Revises: ebf8af4e02fc
 Create Date: 2026-07-19 19:39:04.380145
 
 """
-from typing import Sequence, Union
+import uuid
+from collections.abc import Sequence
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
-import uuid
-
 
 # revision identifiers, used by Alembic.
 revision: str = '1e152befd6b3'
-down_revision: Union[str, Sequence[str], None] = 'ebf8af4e02fc'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'ebf8af4e02fc'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 classification = sa.table(
     "classification",

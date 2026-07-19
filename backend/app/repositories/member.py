@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ProjectMembers
 
+
 class ProjectMemberRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -28,7 +29,7 @@ class ProjectMemberRepository:
     async def list_members_in_project(self, project_id: UUID) -> list[ProjectMembers]:
         stmt = select(ProjectMembers).where(ProjectMembers.project_id == project_id)
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def delete_all_members_for_projects(self, project_id: UUID) -> None:
         stmt = select(ProjectMembers).where(

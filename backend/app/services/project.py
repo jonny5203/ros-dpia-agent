@@ -4,12 +4,17 @@ import logging
 from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient
+from qdrant_client.http import models as qdrant_models
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.models import Projects
-from app.repositories import DocumentRepository, LookupRepository, ProjectMemberRepository, ProjectRepository
-from qdrant_client.http import models as qdrant_models
+from app.repositories import (
+    DocumentRepository,
+    LookupRepository,
+    ProjectMemberRepository,
+    ProjectRepository,
+)
 from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
@@ -58,10 +63,14 @@ class ProjectService:
             await self.qdrant.create_collection(
                 collection_name=f"chunks_{project.id}",
                 vectors_config={
-                    "dense": qdrant_models.VectorParams(size=3072, distance=qdrant_models.Distance.COSINE)
+                    "dense": qdrant_models.VectorParams(
+                        size=3072, distance=qdrant_models.Distance.COSINE
+                    )
                 },
                 sparse_vectors_config={
-                    "bm25": qdrant_models.SparseVectorParams(index=qdrant_models.SparseIndexParams())
+                    "bm25": qdrant_models.SparseVectorParams(
+                        index=qdrant_models.SparseIndexParams()
+                    )
                 },
             )
 
@@ -96,7 +105,8 @@ class ProjectService:
     async def update(self, project_id: UUID, **fields: object) -> Projects | None:
         current_project = await self.projects.get_by_id(project_id)
         if current_project is None:
-            return
+            return None
 
-        await self.projects.update(current_project, **fields)
+        updated = await self.projects.update(current_project, **fields)
         await self.session.commit()
+        return updated

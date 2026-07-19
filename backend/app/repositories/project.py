@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Projects
 
+
 class ProjectRepository:
     def __init__(self, session:AsyncSession) -> None:
         self.session = session
@@ -42,7 +43,7 @@ class ProjectRepository:
     async def list_all(self, user_id: UUID) -> list[Projects]:
         stmt = select(Projects).order_by(Projects.created_at.desc())
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def list_for_users(self, user_id: UUID) -> list[Projects]:
         stmt = (
@@ -51,7 +52,7 @@ class ProjectRepository:
             .order_by(Projects.created_at.desc())
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def delete(self, project: Projects) -> None:
         await self.session.delete(project)
