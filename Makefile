@@ -153,15 +153,17 @@ k8s-nuke: ## Delete the kind cluster entirely (cluster + everything in it)
 > kind delete cluster --name $(CLUSTER)
 
 # ── Database / migrations ────────────────────────────────────────────────────
-# Migrations run inside the api pod (where alembic lives, DATABASE_URL configured).
-# psql runs inside the postgres pod (where psql exists).
+# Revisions are authored locally (repo is source of truth) and applied inside
+# the api pod at deploy time (initContainer runs `alembic upgrade head`).
+# Generating a revision requires `make db-forward` running in another shell.
 
 db-migrate: ## Apply pending migrations (alembic upgrade head) inside the api pod
 > @kubectl -n $(NAMESPACE) exec deployment/api -- alembic upgrade head
 
-db-revision: ## Create a new migration. Usage: make db-revision m="add_users_table"
-> @test -n "$(m)" || { echo "Usage: make db-revision m=\"<message>\""; exit 1; }
-> @kubectl -n $(NAMESPACE) exec deployment/api -- alembic revision -m "$(m)"
+db-revision: require-env ## Create a new migration locally. Run `make db-forward` first. Usage: make db-revision m="add_users_table"
+> @test -n "$(m)" || { echo 'Usage: make db-revision m="<message>"'; exit 1; }
+> @cd backend && DATABASE_URL=$$(grep -E '^DATABASE_URL=' ../.env | sed 's/@postgres:/@localhost:/') .venv/bin/alembic revision -m "$(m)"
+> @echo "[make] revision written to backend/alembic/versions/ — build & redeploy to apply"
 
 db-current: ## Show current alembic version + pending migrations
 > @kubectl -n $(NAMESPACE) exec deployment/api -- sh -c 'echo "== current ==" && alembic current && echo "== heads ==" && alembic heads'

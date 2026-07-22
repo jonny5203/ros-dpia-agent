@@ -63,7 +63,7 @@ Locked via two rounds of requirements gathering + a July-2026 best-practices res
 | **RBAC** | IdP group → global app role **+** app-owned `project_members` table for per-project membership | Roles: Viewer, Project Manager, Privacy Officer, IT-Security, Admin. |
 | **Background jobs** | **`arq` + Redis** (async-native) | Document ingestion + the 5-step AI pipeline. Job status mirrored to Postgres. |
 | **UI language** | **English UI + Norwegian (Bokmål) synthetic sample documents** | Authentic data where it matters; broadly readable demo. |
-| **PDF parsing** | **`PyMuPDF4LLM` (AGPL v3)** primary, `docling` (MIT) / `pypdf` (BSD) fallback | AGPL is the free option (chosen) — best RAG-grade quality (page chunks, tables, integrated OCR). AGPL §13 network-use clause is acceptable for strictly-internal kommune use; swap to MIT `docling` if the tool is ever network-exposed to third parties. |
+| **PDF parsing** | **Docling via modular `docling-slim` (MIT)** primary; `pypdf` (BSD-3-Clause) text-only fallback | Install only Docling's PDF, local-model, and RapidOCR/ONNX extras, with CPU-only PyTorch wheels for the Linux backend. This provides local layout, reading-order, table, and OCR-aware extraction without introducing PyMuPDF/PyMuPDF4LLM's AGPL-or-commercial-license choice. The fallback is an explicit degraded mode for born-digital PDFs, never a silent quality downgrade. Pin and review Docling model artifacts separately from the MIT-licensed code. |
 | **Errors** | **RFC 9457 `application/problem+json`** | Stable error `type` URNs the frontend can branch on. |
 | **Plan scope** | **Full phased vision** (detailed MVP + post-MVP roadmap) | §15–§16. |
 
@@ -410,7 +410,7 @@ Kubernetes manifests in `infra/k8s/` (applied with kustomize via `make k8s-up`),
 - [x] Keycloak realm JSON: realm `sandefjord`, public PKCE client `dpia-bff`, 4 groups, 4 users, `groups` + `aud` (`dpia-api`) protocol mappers.
 - [x] Domain: `users`, `projects`, `project_members`; `get_current_user`, `get_project_context`; group→role mapping; **404-not-403** on non-membership.
 - [x] SPA: redirect-to-login on 401, credentialed fetch wrapper, `/login` + `/callback`.
-- [ ] Tests: login flow; RBAC allow/deny; non-member → 404.
+- [x] Tests: login flow; RBAC allow/deny; non-member → 404.
 
 **Acceptance criteria:**
 - Log in as each seeded user; `/auth/me` returns correct global role.
@@ -438,19 +438,20 @@ Kubernetes manifests in `infra/k8s/` (applied with kustomize via `make k8s-up`),
 **Goal:** an uploaded doc is parsed, chunked, embedded, PII-scanned, and searchable with citations; CRITICAL findings block indexing until acknowledged.
 
 - [ ] `arq` worker: `ingest_document` job (parse → detect → chunk → embed → upsert → status=ready); `jobs` table + `/jobs/{id}` polling.
-- [ ] Parsers: PDF (**`PyMuPDF4LLM`** — page-chunks + tables + integrated OCR; `docling`/`pypdf` fallback), DOCX (`python-docx`, body-order, headings), XLSX (`openpyxl` read-only/data-only), MD (frontmatter + `MarkdownHeaderTextSplitter`), images (Tesseract `nor+eng` + vision caption). _AGPL §13 noted — acceptable for internal use._
+- [ ] Parsers: PDF (**Docling through `docling-slim[format-pdf,models-local,feat-ocr-rapidocr-onnx]`** — local page/layout/reading-order/table extraction + OCR; export page-aware structured content for chunking), with `pypdf` only as a clearly labelled text-only degraded fallback for born-digital PDFs. Resolve PyTorch from its CPU-only package index for the Linux backend. Preserve `{parser, parserVersion, extractionQuality}` in document metadata and never fall back silently. DOCX (`python-docx`, body-order, headings), XLSX (`openpyxl` read-only/data-only), MD (frontmatter + `MarkdownHeaderTextSplitter`), images (Tesseract `nor+eng` + vision caption). Do not install or invoke PyMuPDF/PyMuPDF4LLM. Pin Docling code and model-artifact versions and retain their license notices.
 - [ ] Chunking: structural split + `RecursiveCharacterTextSplitter` (800 tok / 150 overlap, `tiktoken`); metadata `{documentId, page, sectionTitle, sectionPath, classification, chunkIndex}`; deterministic `uuid5` IDs.
 - [ ] Embeddings: `openai/text-embedding-3-large` (3072) via OpenRouter `/v1/embeddings` (assert dims); `index_manifest` row. _Local `bge-m3`/Ollama embeddings are a post-MVP roadmap mode (§16 R7) — different dim ⇒ re-index on switch._
 - [ ] Qdrant: dense (text-embedding-3-large) + server-side BM25 (`modifier=IDF`, text in payload); `query_points` hybrid (RRF), payload-filtered to the project collection.
 - [ ] **PII detection (pre-embedding gate):** fødselsnummer/D-nummer mod11, Presidio (nb NER) + custom recognizers, Art 9/10 lexicon → `document_findings`; runs **before** any text is sent to OpenRouter for embedding; classification banner; **CRITICAL blocks cloud embedding + indexing** until acknowledged; `/acknowledge` (audited).
 - [ ] `GET /documents/{docId}/chunks/{chunkId}` drill-down.
-- [ ] Tests: parser unit tests (incl. Norwegian DOCX headings); mod11 incl. D/H-nummer; hybrid retrieval recall smoke test.
+- [ ] Tests: Docling parser fixtures for a born-digital PDF with a table and a scanned Norwegian PDF requiring OCR; assert page-aware citations and extraction metadata; assert the dependency lock contains no PyMuPDF/PyMuPDF4LLM package. Cover the explicitly degraded `pypdf` fallback; parser unit tests for Norwegian DOCX headings; mod11 incl. D/H-nummer; hybrid retrieval recall smoke test.
 
 **Acceptance criteria:**
 - Upload a doc with a planted fødselsnummer → flagged CRITICAL → **not sent to OpenRouter for embedding** and not indexed until acknowledged; after ack, embedded + indexed.
 - A natural-language query returns ranked chunks with `[doc, page]` citations, scoped strictly to that project.
 - Re-uploading the same file overwrites (deterministic IDs), not duplicates.
-**Risks:** AGPL §13 triggers if the tool is ever network-exposed to third parties (mitigation: keep internal, or swap to MIT `docling`); OCR confidence on scanned pages; embedding-dim drift (assert + manifest).
+- PyMuPDF and PyMuPDF4LLM are absent from the direct and transitive dependency lock; a `pypdf` fallback result is visibly marked as degraded.
+**Risks:** Docling model-artifact size, license drift, first-run downloads, and ML dependency weight (mitigation: use modular extras + CPU-only wheels, approve/pin/scan artifacts, and pre-bundle them); OCR confidence on scanned pages; embedding-dim drift (assert + manifest).
 
 ### Phase 4 — Profile extraction (the first "wow")
 
@@ -536,12 +537,12 @@ Kubernetes manifests in `infra/k8s/` (applied with kustomize via `make k8s-up`),
 - **Citation fabrication** by weaker/local models → mitigated by the deterministic gate + cloud default for high-stakes stages + visible `unverified` flags.
 - **Embedding-model drift** (dim mismatch silently corrupts recall) → asserted dims + `index_manifest` + re-index detection.
 - **Keycloak realm re-seed** only on first start → documented volume-wipe step.
-- **PyMuPDF AGPL** avoided by defaulting to `docling` (MIT).
+- **Parser licensing** → PyMuPDF/PyMuPDF4LLM are excluded; pin and scan Docling, its model artifacts, and the BSD-licensed `pypdf` fallback, and retain required third-party notices.
 - **Norwegian NER / BM25 / embedding quality** → `text-embedding-3-large` (multilingual) + server-side BM25 + eval set to measure.
 
-**Decisions resolved (2026-07-03, updated 2026-07-04)**
+**Decisions resolved (2026-07-03, updated 2026-07-13)**
 1. **Chat model** — **user-selectable** at runtime from OpenRouter's structured-output-capable catalog (default `anthropic/claude-sonnet-4.5`), chosen per project. OpenRouter is the **sole MVP path**; local Ollama chat is deferred to the post-MVP roadmap (§16 R7). (See §3, §8.)
-2. **PDF parser** — **`PyMuPDF4LLM` (AGPL v3)** primary (AGPL is the free option, chosen); `docling`/`pypdf` MIT fallback retained. AGPL §13 acceptable for internal use. (See §3, Phase 3.)
+2. **PDF parser** — **Docling via modular `docling-slim` (MIT)** is primary for local layout-, table-, and OCR-aware extraction. Install only its PDF, local-model, and RapidOCR/ONNX extras and use CPU-only PyTorch wheels in the Linux backend. `pypdf` (BSD-3-Clause) is retained only as an explicit text-only degraded fallback for born-digital PDFs. PyMuPDF/PyMuPDF4LLM are excluded so the product does not depend on their AGPL-or-commercial licensing path. Docling model artifacts are pinned and reviewed separately because their licenses are not implied by the code license. (See §3, Phase 3.)
 3. **NSM YAML** — **explicit planned task** in Phase 6: source + transcribe v2.1 from `nsm.no/gp-ikt`.
 4. **Fødselsnummer masking** — **last-4 + derived year-of-birth** (default).
 5. **Normen (health) rows** — **conditional on health-data detection** (default).
@@ -591,4 +592,4 @@ ROSAndDPIARAGAgent/
 
 ## Appendix C — Key references
 
-Datatilsynet DPIA guidance · WP248 rev.01 (9 criteria) · GDPR Art 5/6/9/30/32/35/36 (`gdpr-info.eu`) · NSM Grunnprinsipper for IKT-sikkerhet v2.1 (`nsm.no/gp-ikt`) · Digdir internkontroll · Helsedirektoratet Normen · Qdrant hybrid queries (Universal Query API, RRF) · Ollama (`/api/embed`, `/api/chat`, structured outputs) · OpenRouter (model catalog, structured outputs, Response Healing) · `instructor` + Pydantic v2 · Keycloak 26 (realm import, federation) · PyJWT `PyJWKClient` · arq (Redis) · PyMuPDF4LLM (AGPL) / python-docx / openpyxl · Presidio + `NbAiLab/nb-bert-base` · Ragas 0.2. _(Full URL list in the research digest.)_
+Datatilsynet DPIA guidance · WP248 rev.01 (9 criteria) · GDPR Art 5/6/9/30/32/35/36 (`gdpr-info.eu`) · NSM Grunnprinsipper for IKT-sikkerhet v2.1 (`nsm.no/gp-ikt`) · Digdir internkontroll · Helsedirektoratet Normen · Qdrant hybrid queries (Universal Query API, RRF) · Ollama (`/api/embed`, `/api/chat`, structured outputs) · OpenRouter (model catalog, structured outputs, Response Healing) · `instructor` + Pydantic v2 · Keycloak 26 (realm import, federation) · PyJWT `PyJWKClient` · arq (Redis) · Docling (MIT) / pypdf (BSD-3-Clause) / python-docx / openpyxl · Presidio + `NbAiLab/nb-bert-base` · Ragas 0.2. _(Full URL list in the research digest.)_
