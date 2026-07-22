@@ -63,3 +63,18 @@ class DocumentRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def set_status(self, doc: Documents, status_id: UUID) -> None:
+        doc.processing_status_id = status_id
+        await self.session.flush()
+
+    async def set_max_severity(self, doc: Documents, severity: str | None,
+                               lexicon_version: str | None) -> None:
+        doc.max_severity = severity
+        doc.lexicon_version = lexicon_version
+        await self.session.flush()
+
+    async def acknowledge(self, doc: Documents, user_id: UUID) -> None:
+        doc.acked_by = user_id
+        doc.acked_at = func.now()
+        await self.session.flush()
