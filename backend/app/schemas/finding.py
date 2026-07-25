@@ -13,7 +13,7 @@ class FindingRead(BaseModel):
     category: Category
     severity: Severity
     count: int
-    sample_offset: list[list[int]] | None
+    sample_offsets: list[list[int]] | None
     checksum_valid: bool | None
 
 class DocumentWithFindings(BaseModel):

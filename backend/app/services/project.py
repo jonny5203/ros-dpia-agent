@@ -69,9 +69,23 @@ class ProjectService:
                 },
                 sparse_vectors_config={
                     "bm25": qdrant_models.SparseVectorParams(
-                        index=qdrant_models.SparseIndexParams()
+                        index=qdrant_models.SparseIndexParams(),
+                        modifier=qdrant_models.Modifier.IDF,
                     )
                 },
+            )
+
+            await self.qdrant.create_payload_index(
+                collection_name=f"chunks_{project.id}",
+                field_name="text",
+                field_schema=qdrant_models.TextIndexParams(
+                    type="text",
+                    tokenizer=qdrant_models.TokenizerType.WORD,
+                    min_token_len=2,
+                    max_token_len=20,
+                    lowercase=True,
+                ),
+
             )
 
         await self.session.commit()

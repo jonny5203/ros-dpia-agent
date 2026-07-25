@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column("char_end", sa.Integer(), nullable=False),
         sa.Column("sha8", sa.String(8), nullable=False),
         sa.Column("qdrant_point_id", sa.Uuid(), nullable=False),
-        sa.UniqueConstraint("document_id", "chunk_id", name="uq_chunks_doc_index"),
+        sa.UniqueConstraint("document_id", "chunk_index", name="uq_chunks_doc_index"),
     )
 
     op.create_table(
@@ -52,7 +52,7 @@ def upgrade() -> None:
         sa.Column("category", sa.String(32), nullable=False),
         sa.Column("severity", sa.String(16), nullable=False),
         sa.Column("count", sa.Integer(), nullable=False),
-        sa.Column("sample_offset", sa.JSON(), nullable=True),
+        sa.Column("sample_offsets", sa.JSON(), nullable=True),
         sa.Column("checksum_valid", sa.Boolean(), nullable=True),
     )
 
@@ -81,7 +81,7 @@ def upgrade() -> None:
     )
 
     op.execute(
-        "INSERT INTO processing_status (id, name) VALUES (gen_random_uuid()), 'blocked'"
+        "INSERT INTO processing_status (id, name) VALUES (gen_random_uuid(), 'blocked')"
     )
 
 
@@ -91,9 +91,7 @@ def downgrade() -> None:
     op.drop_table("jobs")
     op.drop_table("index_manifest")
     op.drop_table("document_findings")
-    op.drop_table("document_findings")
     op.drop_table("chunks")
-    op.drop_constraint("fk_documents_acked_by", "documents", type_="foreignkey")
     op.drop_column("documents", "lexicon_version")
     op.drop_column("documents", "acked_at")
     op.drop_column("documents", "acked_by")

@@ -32,7 +32,7 @@ class Chunk:
     text: str
     chunk_index: int
     page: int | None
-    section_title: int
+    section_title: str | None
     section_path: str | None
     char_start: int
     char_end: int

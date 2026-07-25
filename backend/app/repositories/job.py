@@ -9,7 +9,7 @@ class JobRepository:
         self.session = session
 
     async def create_job(self, *, project_id: UUID | None, kind: str, arq_job_id: str):
-        job = Jobs(project_id=project_id, kind=kind, status="queued", arq_job_id=arq_job_id, process_pct=0)
+        job = Jobs(project_id=project_id, kind=kind, status="queued", arq_job_id=arq_job_id, progress_pct=0)
         self.session.add(job)
         await self.session.flush()
         return job
