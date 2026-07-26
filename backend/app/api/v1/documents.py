@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
+from app.schemas.document import UploadResponse
+from arq import ArqRedis
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, get_current_user, get_session, get_storage
+from app.api.deps import CurrentUser, get_arq_pool, get_current_user, get_session, get_storage
 from app.db.models import Documents
 from app.repositories import UserRepository
 from app.schemas import DocumentRead
@@ -37,6 +39,7 @@ async def upload_document(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     storage: StorageService = Depends(get_storage),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> DocumentRead:
     content = await file.read()
     svc = DocumentService(session, storage)
@@ -56,7 +59,8 @@ async def upload_document(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return _to_read(doc)
+    job_id = await svc.enqueue_ingest(doc, arq_pool=arq_pool)
+    return UploadResponse(document=_to_read(doc), job_id=job_id)
 
 @router.get("/{project_id}/documents", response_model=list[DocumentRead])
 async def list_documents(

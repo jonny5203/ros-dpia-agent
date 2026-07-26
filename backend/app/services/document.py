@@ -73,3 +73,21 @@ class DocumentService:
 
         await self.documents.delete(doc)
         await self.session.commit()
+
+    async def enqueue_ingest(self, doc, *, arq_pool) -> str:
+        """ Create a job row + enqueue ingest_document. Returns the job UUID. """
+        from app.repositories.job import JobRepository
+        arq_job = await arq_pool.enqueue_job(
+            "ingest_document",
+            job_id=None,
+            document_id=str(doc.id),
+        )
+
+        job_repo = JobRepository(self.session)
+        job = await job_repo.create_job(
+            project_id=doc.project_id,
+            kind="ingest_document",
+            arq_job_id=arq_job.job_id,
+        )
+        await self.session.commit()
+        return str(job.id)

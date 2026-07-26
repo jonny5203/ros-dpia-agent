@@ -2,7 +2,7 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from pathlib import Path
-from app.ingestion.parsers.base import Parser
+from app.ingestion.parser.base import Parser
 from app.ingestion.types import ParsedDocument, ParsedSection
 
 

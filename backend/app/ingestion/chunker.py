@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-from uuid import uuid5
+from uuid import NAMESPACE_URL, uuid5
 
 from app.ingestion.types import Chunk, ParsedDocument, ParsedSection
 
-CHUNK_NAMESPACE = uuid5(uuid.NAMESPACE_URL, "kommune-dpia-chunks")
+CHUNK_NAMESPACE = uuid5(NAMESPACE_URL, "kommune-dpia-chunks")
 
 CHUNK_TOKENS = 800
 CHUNK_OVERLAP = 150

@@ -31,6 +31,13 @@ class StorageService:
                 Bucket=self._bucket, Key=key, Body=data, ContentType=content_type
             )
 
+    async def get(self, key: str) -> bytes:
+        """Fetch an object's bytes. Used by the ingest worker to read uploads back."""
+        async with self._client() as s3:
+            resp = await s3.get_object(Bucket=self._bucket, Key=key)
+            async with resp["Body"] as stream:
+                return await stream.read()
+
     async def delete(self, key: str) -> None:
         async with self._client() as s3:
             await s3.delete_object(Bucket=self._bucket, Key=key)

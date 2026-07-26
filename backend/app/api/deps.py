@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
+from arq import ArqRedis
 import httpx
 from fastapi import Depends, HTTPException, Request
 from qdrant_client import AsyncQdrantClient
@@ -176,3 +177,7 @@ async def get_project_context(
         user_db_id=db_user.id,
         member_role=member.role if member else "admin",
     )
+
+def get_arq_pool(request: Request) -> ArqRedis:
+    """The lifespan created ar producer pool"""
+    return request.app.state.arq_pool

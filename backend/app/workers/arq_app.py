@@ -1,7 +1,6 @@
 """arq worker entrypoint: `arq app.workers.arq_app.WorkerSettings`.
 
-Phase 0: no jobs registered yet (document ingestion + the 5-step AI pipeline
-land in Phase 3+). The worker still boots and connects to Redis so the compose
+The worker still boots and connects to Redis so the compose
 stack is exercised end-to-end.
 """
 
@@ -12,15 +11,23 @@ from typing import Any, ClassVar
 from arq.connections import RedisSettings
 
 from app.core.config import get_settings
+from app.workers.jobs import ingest_document
 
 
-async def noop(_ctx: dict[str, Any]) -> None:
-    """Placeholder job so the worker boots and connects to Redis.
+async def on_startup(ctx: dict[str, Any]) -> None:
+    """ Build heavy clients once per worker process. This is shared across jobs via ctx(context). """
+    from app.ai.providers.openrouter import OpenRouterClient
+    from qdrant_client import AsyncQdrantClient
+    from app.services.storage import StorageService
 
-    arq refuses to start without at least one registered function; real jobs
-    (ingest_document, run_pipeline, ...) replace this in Phase 3+.
-    """
-    return None
+    s = get_settings()
+    ctx["openrouter"] = OpenRouterClient(s)
+    ctx["qdrant"] = AsyncQdrantClient(url=s.qdrant_url)
+    ctx["storage"] = StorageService(s)
+
+async def on_shutdown(ctx: dict[str, Any]) -> None:
+    await ctx["openrouter"].aclose()
+    await ctx["qdrant"].close()
 
 
 def _redis_settings() -> RedisSettings:
@@ -30,7 +37,9 @@ def _redis_settings() -> RedisSettings:
 class WorkerSettings:
     """arq discovers this class by name."""
 
-    functions: ClassVar[list] = [noop]  # Phase 3+: ingest_document, run_pipeline, ...
+    functions: ClassVar[list] = [ingest_document]
     redis_settings = _redis_settings()
     max_jobs = 4
     job_timeout = 600
+    on_startup = on_startup
+    on_shutdown = on_shutdown

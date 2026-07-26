@@ -64,7 +64,7 @@ def scan(parsed: ParsedDocument) -> ScanResult:
         findings.append(Finding(
             type="fodselsnummer",
             category="personal",
-            severity="critical" if valid else "high",
+            severity="critical",
             count=len(valid),
             sample_offsets=valid[:5],
             checksum_valid=True,
@@ -102,20 +102,11 @@ def scan(parsed: ParsedDocument) -> ScanResult:
     except Exception as exc:
         logger.warning("Presidio unavailable, skipping NER: %s", exc)
 
-    low = full.low()
+    low = full.lower()
     art9_hits = [w for w in _ART9_HINTS if w in low]
     if art9_hits:
         findings.append(Finding(
             type="art9_lexicon",
-            category="special_category",
-            severity="high",
-            count=len(art9_hits),
-            sample_offsets=[],
-        ))
-    art10_hits = [w for w in _ART10_HINTS if w in low]
-    if art10_hits:
-        findings.append(Finding(
-            type="art10_lexicon",
             category="special_category",
             severity="high",
             count=len(art9_hits),

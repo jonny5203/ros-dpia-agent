@@ -18,3 +18,11 @@ class DocumentRead(BaseModel):
     processing_status: str
     uploaded_by: UUID
     uploaded_at: datetime
+
+class UploadResponse(BaseModel):
+    """
+        Composite response: the created document + the ingestion job id
+        the frontend poos via GET /v1/jobs/{job_id}
+    """
+    document: DocumentRead
+    job_id: str

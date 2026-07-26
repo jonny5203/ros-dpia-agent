@@ -42,7 +42,7 @@ class OpenRouterClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         await self._client.aclose()
 
     # ── Reachability (used by /api/health) ───────────────────────────────

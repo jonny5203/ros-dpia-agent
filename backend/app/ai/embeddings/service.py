@@ -6,9 +6,10 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# Number of batches in one go
 _BATCH = 64
 
-async def embed_chunk(texts: list[str], or_client: OpenRouterClient) -> list[list[float]]:
+async def embed_chunks(texts: list[str], or_client: OpenRouterClient) -> list[list[float]]:
     """
         Embed chunk texts in batches and assert every vector matches the configuration dim.
 
@@ -32,3 +33,4 @@ async def embed_chunk(texts: list[str], or_client: OpenRouterClient) -> list[lis
                 )
         out.extend(vectors)
     return out
+
