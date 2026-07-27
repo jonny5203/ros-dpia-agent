@@ -62,7 +62,7 @@ async def ingest_document(ctx: dict[str, Any], *, job_id: str, document_id: str)
                     category=f.category,
                     severity=f.severity,
                     count=f.count,
-                    sample_offset=[list(o) for o in f.sample_offsets],
+                    sample_offsets=[list(o) for o in f.sample_offsets],
                     checksum_valid=f.checksum_valid,
                 )
                 for f in scan_result.findings

@@ -6,8 +6,8 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from app.workers.arq_app import _redis_settings
 from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client import AsyncQdrantClient
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.qdrant = AsyncQdrantClient(url=settings.qdrant_url)
     app.state.storage = StorageService(settings)
     app.state.arq_pool = await create_pool(
-        await _redis_settings.from_dns(settings.redis_url)
+        RedisSettings.from_dsn(settings.redis_url)
     )
     logger.info("Starting %s (env=%s)", settings.app_name, settings.env)
     if not settings.openrouter_api_key_value:
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     try:
         yield
     finally:
-        await app.state.openrouter.aclose()
+        await app.state.openrouter.close()
         await engine.dispose()
         await app.state.qdrant.close()
         await app.state.arq_pool.close()

@@ -21,11 +21,13 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
 
-    # Extending Documents
-    op.add_column("documents", sa.Column("max_severity", sa.String(16), nullable=True))
-    op.add_column("documents", sa.Column("acked_by", sa.Uuid(), nullable=True))
-    op.add_column("documents", sa.Column("acked_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("documents", sa.Column("lexicon_version", sa.String(32), nullable=True))
+    # Extending Documents. Wrapped in IF NOT EXISTS via raw SQL because a prior
+    # partial run may have added these columns before failing later in the
+    # migration — alembic's transactional rollback doesn't always unwind them.
+    op.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS max_severity VARCHAR(16)")
+    op.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS acked_by UUID")
+    op.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS acked_at TIMESTAMP WITH TIME ZONE")
+    op.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS lexicon_version VARCHAR(32)")
 
     # Chunks, single source of truth for the citation gate
     op.create_table(
@@ -69,7 +71,7 @@ def upgrade() -> None:
     #
     op.create_table(
         "jobs",
-        sa.Column("id", sa.Uuid(), primary_key=True, server_default=sa.text("get_random_uuid()")),
+        sa.Column("id", sa.Uuid(), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.id"), nullable=False, index=True),
         sa.Column("kind", sa.String(64), nullable=False),
         sa.Column("status", sa.String(32), nullable=False),
@@ -81,7 +83,9 @@ def upgrade() -> None:
     )
 
     op.execute(
-        "INSERT INTO processing_status (id, name) VALUES (gen_random_uuid(), 'blocked')"
+        "INSERT INTO processing_status (id, name) "
+        "SELECT gen_random_uuid(), 'blocked' "
+        "WHERE NOT EXISTS (SELECT 1 FROM processing_status WHERE name = 'blocked')"
     )
 
 

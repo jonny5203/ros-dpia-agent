@@ -82,6 +82,13 @@ def scan(parsed: ParsedDocument) -> ScanResult:
 
     try:
         from presidio_analyzer import AnalyzerEngine
+
+        # AnalyzerEngine() triggers spaCy auto-download of en_core_web_lg when
+        # the model isn't installed. spaCy's downloader calls sys.exit(1) on
+        # failure (e.g. no pip in the venv), which raises SystemExit — a
+        # BaseException that `except Exception` won't catch. So we catch
+        # BaseException here, log, and skip NER. In production, install the
+        # model in the image so this path isn't hit.
         analyzer = AnalyzerEngine()
 
         results = analyzer.analyze(
@@ -99,7 +106,9 @@ def scan(parsed: ParsedDocument) -> ScanResult:
                 count=len(results),
                 sample_offsets=[(r.start, r.end) for r in results[:5]],
             ))
-    except Exception as exc:
+    except BaseException as exc:
+        # BaseException (not Exception) because spaCy's downloader raises
+        # SystemExit on failure, which we must not let propagate.
         logger.warning("Presidio unavailable, skipping NER: %s", exc)
 
     low = full.lower()

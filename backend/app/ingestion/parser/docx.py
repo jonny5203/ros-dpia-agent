@@ -7,7 +7,7 @@ from app.ingestion.types import ParsedDocument, ParsedSection
 class DocxParser(Parser):
     name = "python-docx"
     version = "python-docx>=1.1"
-    _HEADING = re.compile(r"^Heading(\d+)$")
+    _HEADING = re.compile(r"^Heading\s*(\d+)$")
 
     def parse(self, data: bytes, filename: str) -> ParsedDocument:
         from docx import Document

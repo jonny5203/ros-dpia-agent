@@ -39,6 +39,7 @@ dev = [
   "mypy>=1.11",
   "pytest>=8",
   "pytest-asyncio>=0.24",
+  "reportlab>=4.0",
 ]
 
 [build-system]
@@ -72,6 +73,9 @@ check_untyped_defs = true
 asyncio_mode = "auto"
 testpaths = ["app/tests"]
 addopts = "-q"
+markers = [
+  "slow: marks tests as slow (deselect with -m 'not slow')",
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

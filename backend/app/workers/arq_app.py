@@ -26,7 +26,7 @@ async def on_startup(ctx: dict[str, Any]) -> None:
     ctx["storage"] = StorageService(s)
 
 async def on_shutdown(ctx: dict[str, Any]) -> None:
-    await ctx["openrouter"].aclose()
+    await ctx["openrouter"].close()
     await ctx["qdrant"].close()
 
 
