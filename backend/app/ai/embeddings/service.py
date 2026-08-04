@@ -1,36 +1,35 @@
 from __future__ import annotations
 
 import logging
-from app.ai.providers.openrouter import OpenRouterClient
+
+from app.ai.providers.base import EmbeddingClient
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Number of batches in one go
 _BATCH = 64
 
-async def embed_chunks(texts: list[str], or_client: OpenRouterClient) -> list[list[float]]:
-    """
-        Embed chunk texts in batches and assert every vector matches the configuration dim.
 
-        Dim assertion is the embedding-drift invariant. If Openrouter silently swaps the model,
-        vectors would still index but recall would corrupt. This will make it fail loudly so
-        the wrong dim vectors doesn't get indexed
-    """
+async def embed_chunks(
+    texts: list[str],
+    client: EmbeddingClient,
+) -> list[list[float]]:
+    """Embed text in batches and reject unexpected vector dimensions."""
 
     settings = get_settings()
     expected = settings.embed_dim
-    out: list[list[float]] = []
+    output: list[list[float]] = []
 
-    for i in range(0, len(texts), _BATCH):
-        batch = texts[i : i + _BATCH]
-        vectors = await or_client.embed(batch)
-        for v in vectors:
-            if len(v) != expected:
+    for index in range(0, len(texts), _BATCH):
+        batch = texts[index : index + _BATCH]
+        vectors = await client.embed(batch)
+        for vector in vectors:
+            if len(vector) != expected:
                 raise RuntimeError(
-                    f"embedding dim drigt: got {len(v)}, {expected}"
-                    f"(model={settings.embed_model}), refusing to index"
+                    f"embedding dimension drift: got {len(vector)}, "
+                    f"expected {expected} "
+                    f"(model={settings.embed_model})"
                 )
-        out.extend(vectors)
-    return out
+        output.extend(vectors)
 
+    return output

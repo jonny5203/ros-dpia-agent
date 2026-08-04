@@ -53,25 +53,6 @@ class NamedReferencedList(BaseModel):
     items: list[ReferencedItem] = Field(default_factory=list)
 
 
-class Gap(BaseModel):
-    """A missing-information finding produced by Pass B (red-team gap-finder).
-
-    `field` names the profile field that has no supporting evidence;
-    `description` is human-readable Norwegian/English per project language.
-    """
-
-    field: str
-    description: str
-    severity: Literal["info", "warning", "critical"] = "warning"
-
-
-class OpenQuestion(BaseModel):
-    """A follow-up question for the supplier / privacy officer (Pass B)."""
-
-    question: str
-    rationale: str | None = None
-
-
 class NeedsReviewClaim(BaseModel):
     """An asserted value removed from the trusted profile by the citation gate."""
 
@@ -122,3 +103,31 @@ class ProjectProfileRead(BaseModel):
     model: str
     prompt_version: str
     created_at: datetime
+
+
+class Gap(BaseModel):
+    """A missing-information finding produced by Pass B."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    field: str
+    description: str
+    severity: Literal["info", "warning", "critical"]
+
+
+class OpenQuestion(BaseModel):
+    """A follow-up question for the supplier or privacy officer."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    question: str
+    rationale: str | None
+
+
+class GapReport(BaseModel):
+    """Strict Pass-B response before it is merged into the safe profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    missingInfo: list[Gap]
+    openQuestions: list[OpenQuestion]

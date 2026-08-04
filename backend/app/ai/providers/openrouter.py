@@ -1,26 +1,24 @@
 """OpenRouter client — chat completions + embeddings over one OpenAI-compatible
 gateway (https://openrouter.ai/api/v1).
-
-Phase 0 only needs this to be *constructed* and *reachable* (the /api/health
-sub-check pings `/models` and, if a key is set, `/key`). The actual `embed`
-and `chat_completion` calls are exercised from Phase 3+ on.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 import httpx
+from instructor import AsyncInstructor, Mode, from_provider
 
+from app.ai.providers.base import TModel
 from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
 
 
 class OpenRouterError(RuntimeError):
-    """Raised when an OpenRouter call fails after retries (Phase 3+ callers wrap this)."""
+    """Raised when an OpenRouter call fails after retries."""
 
 
 class OpenRouterClient:
@@ -35,6 +33,7 @@ class OpenRouterClient:
             timeout=httpx.Timeout(30.0, connect=5.0),
         )
         self._reach_cache: tuple[float, dict[str, Any]] | None = None
+        self._structured_clients: dict[str, AsyncInstructor] = {}
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -43,7 +42,70 @@ class OpenRouterClient:
         return headers
 
     async def close(self) -> None:
-        await self._client.aclose()
+        structured_clients = tuple(self._structured_clients.values())
+        self._structured_clients.clear()
+        try:
+            for client in structured_clients:
+                underlying_client = client.client
+                if underlying_client is not None:
+                    await underlying_client.close()
+        finally:
+            await self._client.aclose()
+
+    def _structured_client(self, model: str) -> AsyncInstructor:
+        if not self.api_key:
+            raise OpenRouterError("structured completion requires OPENROUTER_API_KEY")
+
+        cached = self._structured_clients.get(model)
+        if cached is not None:
+            return cached
+
+        created = from_provider(
+            f"openrouter/{model}",
+            async_client=True,
+            api_key=self.api_key,
+            base_url=self.base_url,
+            mode=Mode.JSON_SCHEMA,
+        )
+
+        if not isinstance(created, AsyncInstructor):
+            raise OpenRouterError("expected an asynchronous Instructor client")
+
+        self._structured_clients[model] = created
+        return created
+
+    async def structured_completion(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        response_model: type[TModel],
+        model: str | None = None,
+        max_retries: int = 2,
+        **kwargs: Any,
+    ) -> TModel:
+        selected_model = model or self.default_chat_model
+        client = self._structured_client(selected_model)
+
+        try:
+            result = await client.chat.completions.create(
+                response_model=response_model,
+                messages=cast(Any, messages),
+                model=selected_model,
+                max_retries=max_retries,
+                strict=True,
+                **kwargs,
+            )
+        except Exception as exc:
+            raise OpenRouterError(
+                f"structured completion failed for {response_model.__name__}"
+            ) from exc
+
+        if not isinstance(result, response_model):
+            raise OpenRouterError(
+                f"structured completion returned an invalid {response_model.__name__}"
+            )
+
+        return result
 
     # ── Reachability (used by /api/health) ───────────────────────────────
     async def reachability(self, *, cache_ttl: float = 30.0) -> dict[str, Any]:
@@ -82,7 +144,7 @@ class OpenRouterClient:
                 out["key_error"] = type(exc).__name__
         return out
 
-    # ── Embeddings (Phase 3) ─────────────────────────────────────────────
+    # ── Embeddings ─────────────────────────────────────────────
     async def embed(self, texts: list[str], *, model: str | None = None) -> list[list[float]]:
         if not texts:
             return []
@@ -94,7 +156,7 @@ class OpenRouterClient:
         data.sort(key=lambda d: d.get("index", 0))
         return [d["embedding"] for d in data]
 
-    # ── Chat (Phase 4+) ──────────────────────────────────────────────────
+    # ── Chat ──────────────────────────────────────────────────
     async def chat_completion(
         self,
         messages: list[dict[str, str]],

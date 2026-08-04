@@ -78,3 +78,19 @@ class DocumentRepository:
         doc.acked_by = user_id
         doc.acked_at = func.now()
         await self.session.flush()
+
+    async def filenames_by_ids(
+        self,
+        project_id: UUID,
+        document_ids: set[UUID],
+    ) -> dict[UUID, str]:
+        if not document_ids:
+            return {}
+
+        stmt = select(Documents.id, Documents.filename).where(
+            Documents.project_id == project_id,
+            Documents.id.in_(document_ids)
+        )
+        result = await self.session.execute(stmt)
+        # returns document_id as key and filename as value
+        return {document_id: filename for document_id, filename in result.all()}

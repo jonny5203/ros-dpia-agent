@@ -34,6 +34,14 @@ _CHUNKS = [
 ]
 
 
+def _empty_scalar() -> Cited:
+    return Cited(value=None, sourceReferences=[])
+
+
+def _empty_list() -> CitedNamed:
+    return CitedNamed(items=[])
+
+
 def _profile(
     *,
     purpose: Cited | None = None,
@@ -41,15 +49,16 @@ def _profile(
     retention: Cited | None = None,
 ) -> CitedProjectProfile:
     return CitedProjectProfile(
-        purpose=purpose or Cited(),
-        dataSubjects=CitedNamed(),
-        personalDataCategories=CitedNamed(),
-        specialCategories=CitedNamed(),
-        systems=systems or CitedNamed(),
-        processors=CitedNamed(),
-        retention=retention or Cited(),
-        accessControl=Cited(),
-        internationalTransfer=Cited(),
+        purpose=purpose or _empty_scalar(),
+        dataSubjects=_empty_list(),
+        personalDataCategories=_empty_list(),
+        specialCategories=_empty_list(),
+        systems=systems or _empty_list(),
+        processors=_empty_list(),
+        retention=retention or _empty_scalar(),
+        accessControl=_empty_scalar(),
+        internationalTransfer=_empty_scalar(),
+        overallConfidence="medium",
     )
 
 
@@ -150,7 +159,7 @@ def test_gate_retains_mixed_scalar_as_partial():
 
 def test_gate_quarantines_value_without_references():
     block = render_evidence(_CHUNKS)
-    profile = _profile(retention=Cited(value="5 years"))
+    profile = _profile(retention=Cited(value="5 years", sourceReferences=[]))
     result = verify_profile(profile, block.token_map)
     assert result is not None
 
