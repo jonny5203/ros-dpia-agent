@@ -40,6 +40,11 @@ async def get_job(
     job = await JobRepository(session).get_job(job_id)
     if job is None:
         raise HTTPException(404, "Job not found")
+    await get_project_context(
+        project_id=job.project_id,
+        user=user,
+        session=session,
+    )
     return JobRead.model_validate(job)
 
 @router.post("/documents/{doc_id}/acknowledge", response_model=DocumentWithFindings)

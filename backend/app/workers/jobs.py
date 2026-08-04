@@ -8,7 +8,12 @@ from typing import Any
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.agents.extract_profile import (
+    ProfileExtractionError,
+    extract_profile,
+)
 from app.ai.embeddings.service import embed_chunks
+from app.ai.prompts.profile import OutputLanguage
 from app.ai.providers.openrouter import OpenRouterClient
 from app.ai.store.qdrant import upsert_chunks
 from app.core.config import get_settings
@@ -20,6 +25,73 @@ from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 _SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+class AnalysisJobError(RuntimeError):
+    """The queued analysis request does not match a persisted job."""
+
+
+def _analysis_error(exc: Exception) -> str:
+    if isinstance(exc, ProfileExtractionError):
+        return str(exc)
+    return "Profile analysis failed"
+
+
+async def analyze_project(
+    ctx: dict[str, Any],
+    *,
+    job_id: str,
+    project_id: str,
+    output_language: OutputLanguage = "nb",
+) -> None:
+    """Run both profile passes and persist one profile or one failed job state."""
+
+    parsed_job_id = uuid.UUID(job_id)
+    parsed_project_id = uuid.UUID(project_id)
+    settings = get_settings()
+    client: OpenRouterClient = ctx["openrouter"]
+    qdrant: AsyncQdrantClient = ctx["qdrant"]
+
+    from app.repositories.document import DocumentRepository
+    from app.repositories.job import JobRepository
+    from app.repositories.profile import ProfileRepository
+
+    async with SessionLocal() as session:
+        jobs = JobRepository(session)
+        job = await jobs.get_job(parsed_job_id)
+        if job is None or job.project_id != parsed_project_id:
+            raise AnalysisJobError("analysis job does not match the requested project")
+
+        await jobs.update(job, status="running", progress_pct=10, error=None)
+        await session.commit()
+
+        try:
+            await extract_profile(
+                project_id=parsed_project_id,
+                model=settings.llm_model,
+                qdrant=qdrant,
+                client=client,
+                documents=DocumentRepository(session),
+                profiles=ProfileRepository(session),
+                output_language=output_language,
+            )
+            await jobs.update(job, status="complete", progress_pct=100, error=None)
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            logger.exception("analysis job %s failed", parsed_job_id)
+            try:
+                failed_job = await jobs.get_job(parsed_job_id)
+                if failed_job is not None:
+                    await jobs.update(
+                        failed_job,
+                        status="failed",
+                        error=_analysis_error(exc),
+                    )
+                    await session.commit()
+            except Exception:
+                logger.exception("could not mark analysis job %s failed", parsed_job_id)
+            raise
 
 
 async def ingest_document(ctx: dict[str, Any], *, job_id: str, document_id: str) -> None:

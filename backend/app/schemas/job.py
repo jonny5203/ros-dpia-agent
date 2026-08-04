@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class JobRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    project_id: UUID | None
+    project_id: UUID
     kind: str
     status: str
     progress_pct: int
