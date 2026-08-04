@@ -175,3 +175,54 @@ async def test_job_polling_checks_project_membership(monkeypatch: pytest.MonkeyP
     assert response.id == job_id
     assert checked["project_id"] == project_id
     assert checked["user"] is user
+
+
+@pytest.mark.asyncio
+async def test_chunk_drilldown_checks_project_membership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id = uuid4()
+    document_id = uuid4()
+    chunk_id = uuid4()
+    checked: dict[str, object] = {}
+    chunk = SimpleNamespace(
+        id=chunk_id,
+        project_id=project_id,
+        document_id=document_id,
+        chunk_index=0,
+        page=2,
+        section_title="Architecture",
+        section_path="Overview > Architecture",
+        char_start=0,
+        char_end=42,
+        sha8="deadbeef",
+        text="Azure OpenAI is used for structured analysis.",
+    )
+
+    class FakeChunkRepository:
+        def __init__(self, session: AsyncSession) -> None:
+            pass
+
+        async def get(self, requested: UUID) -> object:
+            assert requested == chunk_id
+            return chunk
+
+    async def fake_project_context(**kwargs: object) -> ProjectContext:
+        checked.update(kwargs)
+        return _project_context(project_id)
+
+    monkeypatch.setattr(ingest_api, "ChunkRepository", FakeChunkRepository)
+    monkeypatch.setattr(ingest_api, "get_project_context", fake_project_context)
+
+    user = CurrentUser("sub", "user@example.com", "User", AppRole.VIEWER)
+    response = await ingest_api.get_chunk(
+        doc_id=document_id,
+        chunk_id=chunk_id,
+        user=user,
+        session=cast(AsyncSession, object()),
+    )
+
+    assert response.id == chunk_id
+    assert response.text == chunk.text
+    assert checked["project_id"] == project_id
+    assert checked["user"] is user

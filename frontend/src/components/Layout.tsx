@@ -1,17 +1,27 @@
-import { NavLink, Outlet, useRouteLoaderData, Navigate } from "react-router";
+import { Navigate, NavLink, Outlet, matchPath, useLocation, useRouteLoaderData } from "react-router";
 
 import type { CurrentUser } from "@/api/auth";
 
-const NAV: { to: string; label: string; end?: boolean }[] = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/projects/hso/documents", label: "Upload" },
-  { to: "/projects/hso/analysis", label: "Analysis" },
-  { to: "/projects/hso/ros", label: "ROS" },
-  { to: "/projects/hso/export", label: "Export" },
-];
-
 export function Layout() {
   const { user } = useRouteLoaderData("root") as { user: CurrentUser | null };
+  const location = useLocation();
+  const activeProjectId =
+    matchPath("/projects/:id/*", location.pathname)?.params.id ??
+    import.meta.env.VITE_DEMO_PROJECT_ID;
+  const projectPath = activeProjectId
+    ? `/projects/${encodeURIComponent(activeProjectId)}`
+    : null;
+  const nav: { to: string; label: string; end?: boolean }[] = [
+    { to: "/", label: "Dashboard", end: true },
+    ...(projectPath
+      ? [
+          { to: `${projectPath}/documents`, label: "Upload" },
+          { to: `${projectPath}/analysis`, label: "Analysis" },
+          { to: `${projectPath}/ros`, label: "ROS" },
+          { to: `${projectPath}/export`, label: "Export" },
+        ]
+      : []),
+  ];
 
   // Loader is the primary guard; this covers the null-without-401 edge so we
   // never render protected content without a verified identity.
@@ -23,7 +33,7 @@ export function Layout() {
         <nav className="mx-auto flex max-w-6xl items-center gap-6 p-4">
           <span className="text-sm font-semibold">DPIA &amp; ROS Copilot</span>
           <div className="flex flex-1 gap-4">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

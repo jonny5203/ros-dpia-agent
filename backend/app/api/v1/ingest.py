@@ -94,6 +94,11 @@ async def get_chunk(
     chunk = await ChunkRepository(session).get(chunk_id)
     if chunk is None or chunk.document_id != doc_id:
         raise HTTPException(404, "Chunk not found")
+    await get_project_context(
+        project_id=chunk.project_id,
+        user=user,
+        session=session,
+    )
     return ChunkRead.model_validate(chunk)
 
 @router.get("/projects/{project_id}/search")
