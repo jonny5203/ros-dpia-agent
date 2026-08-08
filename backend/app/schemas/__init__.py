@@ -16,14 +16,36 @@ from app.schemas.profile import (
     VerificationStatus,
 )
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.schemas.screening import (
+    Art35TriggerAssessment,
+    Art35TriggerId,
+    Art35TriggerResult,
+    CriterionStatus,
+    DpiaConclusion,
+    DpiaCriterionAssessment,
+    DpiaCriterionId,
+    DpiaCriterionResult,
+    DpiaScreeningInput,
+    DpiaScreeningResult,
+)
 
 __all__ = [
     "AnalysisJobResponse",
     "AnalysisRequest",
+    "Art35TriggerAssessment",
+    "Art35TriggerId",
+    "Art35TriggerResult",
     "ChunkRead",
     "ChunkRef",
+    "CriterionStatus",
     "DocumentRead",
     "DocumentWithFindings",
+    "DpiaConclusion",
+    "DpiaCriterionAssessment",
+    "DpiaCriterionId",
+    "DpiaCriterionResult",
+    "DpiaScreeningInput",
+    "DpiaScreeningResult",
     "FindingRead",
     "Gap",
     "JobRead",
