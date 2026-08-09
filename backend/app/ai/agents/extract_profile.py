@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Sequence
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient
 
-from app.ai.citations.evidence import EvidenceBlock, render_evidence
+from app.ai.citations.evidence import EvidenceBlock
 from app.ai.citations.gate import verify_profile
 from app.ai.citations.refs import CitedProjectProfile
-from app.ai.embeddings.service import embed_chunks
 from app.ai.prompts.profile import (
     PROFILE_PROMPT_VERSION,
     OutputLanguage,
@@ -20,11 +17,17 @@ from app.ai.prompts.profile import (
     profile_messages,
 )
 from app.ai.providers.base import ProfileAIClient
-from app.ai.store.qdrant import hybrid_query
+from app.ai.retrieval import (
+    DEFAULT_EVIDENCE_LIMIT,
+    DocumentNameLookup,
+    NoRetrievedEvidenceError,
+    RetrievalError,
+    merge_ranked_results,
+    retrieve_project_evidence,
+)
 from app.db.models import ProjectProfiles
 from app.schemas.profile import GapReport
 
-DEFAULT_EVIDENCE_LIMIT = 24
 _PER_QUERY_LIMIT = 8
 
 RETRIEVAL_QUERIES = (
@@ -46,6 +49,15 @@ RETRIEVAL_QUERIES = (
     ),
 )
 
+__all__ = [
+    "DEFAULT_EVIDENCE_LIMIT",
+    "RETRIEVAL_QUERIES",
+    "NoEvidenceError",
+    "ProfileExtractionError",
+    "extract_profile",
+    "merge_ranked_results",
+]
+
 
 class ProfileExtractionError(RuntimeError):
     """Profile extraction could not safely produce a persisted result."""
@@ -53,14 +65,6 @@ class ProfileExtractionError(RuntimeError):
 
 class NoEvidenceError(ProfileExtractionError):
     """The project has no usable indexed evidence."""
-
-
-class DocumentNameLookup(Protocol):
-    async def filenames_by_ids(
-        self,
-        project_id: UUID,
-        document_ids: set[UUID],
-    ) -> dict[UUID, str]: ...
 
 
 class ProfileWriter(Protocol):
@@ -75,65 +79,6 @@ class ProfileWriter(Protocol):
     ) -> ProjectProfiles: ...
 
 
-def _normalise_result(raw: dict[str, Any]) -> dict[str, Any] | None:
-    chunk_id = raw.get("chunk_id")
-    document_id = raw.get("document_id")
-    if chunk_id is None or document_id is None:
-        raise ProfileExtractionError("retrieved evidence is missing chunk or document provenance")
-
-    try:
-        parsed_chunk_id = UUID(str(chunk_id))
-        parsed_document_id = UUID(str(document_id))
-    except ValueError as exc:
-        raise ProfileExtractionError("retrieved evidence contains malformed provenance") from exc
-
-    text = str(raw.get("text") or "").strip()
-    if not text:
-        return None
-
-    return {
-        **raw,
-        "chunk_id": parsed_chunk_id,
-        "document_id": parsed_document_id,
-        "text": text,
-    }
-
-
-def merge_ranked_results(
-    ranked_groups: Sequence[Sequence[dict[str, Any]]],
-    *,
-    limit: int = DEFAULT_EVIDENCE_LIMIT,
-) -> list[dict[str, Any]]:
-    """Interleave query ranks, deduplicate chunks, and enforce the evidence cap."""
-
-    if limit <= 0:
-        raise ValueError("evidence limit must be positive")
-
-    merged: list[dict[str, Any]] = []
-    seen: set[UUID] = set()
-    max_group_size = max((len(group) for group in ranked_groups), default=0)
-
-    for rank in range(max_group_size):
-        for group in ranked_groups:
-            if rank >= len(group):
-                continue
-
-            result = _normalise_result(group[rank])
-            if result is None:
-                continue
-
-            chunk_id = result["chunk_id"]
-            if chunk_id in seen:
-                continue
-
-            seen.add(chunk_id)
-            merged.append(result)
-            if len(merged) == limit:
-                return merged
-
-    return merged
-
-
 async def _retrieve_evidence(
     *,
     project_id: UUID,
@@ -141,42 +86,20 @@ async def _retrieve_evidence(
     client: ProfileAIClient,
     documents: DocumentNameLookup,
 ) -> EvidenceBlock:
-    queries = list(RETRIEVAL_QUERIES)
-    vectors = await embed_chunks(queries, client)
-    if len(vectors) != len(queries):
-        raise ProfileExtractionError("embedding provider returned an unexpected vector count")
-
-    ranked_groups = await asyncio.gather(
-        *(
-            hybrid_query(
-                qdrant,
-                project_id=project_id,
-                query_text=query,
-                query_vector=vector,
-                limit=_PER_QUERY_LIMIT,
-            )
-            for query, vector in zip(queries, vectors, strict=True)
+    try:
+        return await retrieve_project_evidence(
+            project_id=project_id,
+            queries=RETRIEVAL_QUERIES,
+            qdrant=qdrant,
+            client=client,
+            documents=documents,
+            per_query_limit=_PER_QUERY_LIMIT,
+            evidence_limit=DEFAULT_EVIDENCE_LIMIT,
         )
-    )
-    chunks = merge_ranked_results(ranked_groups)
-    if not chunks:
-        raise NoEvidenceError("project has no indexed evidence available for analysis")
-
-    document_ids = {chunk["document_id"] for chunk in chunks}
-    filenames = await documents.filenames_by_ids(project_id, document_ids)
-    missing_documents = document_ids - filenames.keys()
-    if missing_documents:
-        raise ProfileExtractionError(
-            "retrieved evidence does not belong to an available project document"
-        )
-
-    for chunk in chunks:
-        chunk["document_name"] = filenames[chunk["document_id"]]
-
-    evidence = render_evidence(chunks)
-    if not evidence.token_map:
-        raise NoEvidenceError("project has no indexed evidence available for analysis")
-    return evidence
+    except NoRetrievedEvidenceError as exc:
+        raise NoEvidenceError(str(exc)) from exc
+    except RetrievalError as exc:
+        raise ProfileExtractionError(str(exc)) from exc
 
 
 async def extract_profile(

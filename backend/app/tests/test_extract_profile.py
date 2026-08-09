@@ -236,7 +236,7 @@ async def test_extracted_gates_finds_gaps_and_stages_profile(
         return ranked[query_text][:limit]
 
     monkeypatch.setattr(
-        "app.ai.agents.extract_profile.hybrid_query",
+        "app.ai.retrieval.hybrid_query",
         fake_hybrid_query,
     )
 
@@ -293,7 +293,7 @@ async def test_no_evidence_skips_models_and_persistence(monkeypatch: pytest.Monk
         return []
 
     monkeypatch.setattr(
-        "app.ai.agents.extract_profile.hybrid_query",
+        "app.ai.retrieval.hybrid_query",
         no_result,
     )
 
@@ -329,7 +329,7 @@ async def test_missing_project_document_provenance_fails_before_model(
         return [_chunk(1, "Evidence")]
 
     monkeypatch.setattr(
-        "app.ai.agents.extract_profile.hybrid_query",
+        "app.ai.retrieval.hybrid_query",
         one_result,
     )
 
@@ -368,7 +368,7 @@ async def test_gap_failure_does_not_stage_pass_a_profile(
         return [_chunk(1, "Systemet bruker Azure OpenAI.")]
 
     monkeypatch.setattr(
-        "app.ai.agents.extract_profile.hybrid_query",
+        "app.ai.retrieval.hybrid_query",
         one_result,
     )
 
