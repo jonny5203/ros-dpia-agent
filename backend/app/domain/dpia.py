@@ -15,6 +15,8 @@ from app.schemas.screening import (
     DpiaScreeningResult,
 )
 
+DPIA_RULES_VERSION: Final = "dpia-rules.v1"
+
 CRITERION_LABELS_NB: Final[dict[DpiaCriterionId, str]] = {
     DpiaCriterionId.EVALUATION: "Evaluering eller poengsetting",
     DpiaCriterionId.AUTOMATED_DECISION: (
@@ -77,6 +79,7 @@ def evaluate_dpia_screening(
             status=criteria_by_id[criterion_id].status,
             rationale=criteria_by_id[criterion_id].rationale,
             sourceReferences=criteria_by_id[criterion_id].sourceReferences,
+            rejectedCitations=criteria_by_id[criterion_id].rejectedCitations,
         )
         for criterion_id in DpiaCriterionId
     ]
@@ -88,6 +91,7 @@ def evaluate_dpia_screening(
             status=triggers_by_id[trigger_id].status,
             rationale=triggers_by_id[trigger_id].rationale,
             sourceReferences=triggers_by_id[trigger_id].sourceReferences,
+            rejectedCitations=triggers_by_id[trigger_id].rejectedCitations,
         )
         for trigger_id in Art35TriggerId
     ]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -40,12 +40,25 @@ class Art35TriggerId(StrEnum):
     PUBLIC_AREA_MONITORING = "large_scale_public_area_monitoring"
 
 
+class RejectedCitation(BaseModel):
+    """A valid-looking citation token that is absent from this run's snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    citation: str = Field(
+        pattern=r"^C[1-9][0-9]*$",
+        max_length=32,
+    )
+    reason: Literal["not_in_snapshot"] = "not_in_snapshot"
+
+
 class _EvidenceAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: CriterionStatus
     rationale: str = Field(min_length=1)
     sourceReferences: list[ChunkRef] = Field(default_factory=list)
+    rejectedCitations: list[RejectedCitation] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_citations_for_decisive_status(self) -> Self:

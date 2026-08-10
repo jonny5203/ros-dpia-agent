@@ -33,6 +33,7 @@ from app.schemas.screening import (
     DpiaCriterionResult,
     DpiaScreeningInput,
     DpiaScreeningResult,
+    RejectedCitation,
 )
 
 __all__ = [
@@ -70,6 +71,7 @@ __all__ = [
     "Referenced",
     "ReferencedItem",
     "ReferencedValue",
+    "RejectedCitation",
     "UploadResponse",
     "VerificationStatus",
 ]
