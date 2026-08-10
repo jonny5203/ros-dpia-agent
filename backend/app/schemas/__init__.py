@@ -1,7 +1,12 @@
 from app.schemas.analysis import AnalysisJobResponse, AnalysisRequest
 from app.schemas.chunk import ChunkRead, ChunkRef
 from app.schemas.document import DocumentRead, UploadResponse
-from app.schemas.dpia import DpiaEvidenceSnapshot, DpiaEvidenceSnapshotEntry
+from app.schemas.dpia import (
+    DpiaEvidenceSnapshot,
+    DpiaEvidenceSnapshotEntry,
+    DpiaRunStatus,
+    DpiaScreeningRunRead,
+)
 from app.schemas.finding import DocumentWithFindings, FindingRead
 from app.schemas.job import JobRead
 from app.schemas.profile import (
@@ -47,8 +52,10 @@ __all__ = [
     "DpiaCriterionResult",
     "DpiaEvidenceSnapshot",
     "DpiaEvidenceSnapshotEntry",
+    "DpiaRunStatus",
     "DpiaScreeningInput",
     "DpiaScreeningResult",
+    "DpiaScreeningRunRead",
     "FindingRead",
     "Gap",
     "JobRead",

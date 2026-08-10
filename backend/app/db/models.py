@@ -1,7 +1,19 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text, Uuid, func, Integer
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -162,3 +174,122 @@ class ProjectProfiles(Base):
     prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
+class Screenings(Base):
+    __tablename__ = "screenings"
+    __table_args__ = (
+        CheckConstraint(
+            "version > 0",
+            name="ck_screenings_positive_version",
+        ),
+        CheckConstraint(
+            ("status IN ('pending', 'running', 'ready_for_review', 'failed')"),
+            name="ck_screenings_status",
+        ),
+        CheckConstraint(
+            "btrim(rules_version) <> ''",
+            name="ck_screenings_rules_version",
+        ),
+        CheckConstraint(
+            (
+                "("
+                "status = 'pending' "
+                "AND evidence_snapshot IS NULL "
+                "AND result IS NULL "
+                "AND conclusion IS NULL "
+                "AND model IS NULL "
+                "AND prompt_version IS NULL "
+                "AND error IS NULL"
+                ") OR ("
+                "status = 'running' "
+                "AND result IS NULL "
+                "AND conclusion IS NULL "
+                "AND model IS NULL "
+                "AND prompt_version IS NULL "
+                "AND error IS NULL"
+                ") OR ("
+                "status = 'ready_for_review' "
+                "AND evidence_snapshot IS NOT NULL "
+                "AND result IS NOT NULL "
+                "AND conclusion IS NOT NULL "
+                "AND model IS NOT NULL "
+                "AND prompt_version IS NOT NULL "
+                "AND error IS NULL"
+                ") OR ("
+                "status = 'failed' "
+                "AND result IS NULL "
+                "AND conclusion IS NULL "
+                "AND model IS NULL "
+                "AND prompt_version IS NULL "
+                "AND error IS NOT NULL "
+                "AND btrim(error) <> ''"
+                ")"
+            ),
+            name="ck_screenings_lifecycle",
+        ),
+        UniqueConstraint(
+            "project_id",
+            "version",
+            name="uq_screenings_project_version",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="pending",
+    )
+    evidence_snapshot: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+    result: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+    conclusion: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+    model: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    prompt_version: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    rules_version: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+    error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
