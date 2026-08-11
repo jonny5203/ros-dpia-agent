@@ -99,7 +99,9 @@ class Documents(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     max_severity: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    acked_by: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    acked_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
     acked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     lexicon_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
@@ -109,11 +111,16 @@ class ProcessingStatus(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
+
 class Chunks(Base):
     __tablename__ = "chunks"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    project_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False)
-    document_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("documents.id"), index=True, nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("documents.id"), index=True, nullable=False
+    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     section_title: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -123,10 +130,13 @@ class Chunks(Base):
     sha8: Mapped[str] = mapped_column(String(8), nullable=False)
     qdrant_point_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
 
+
 class DocumentFindings(Base):
     __tablename__ = "document_findings"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("documents.id"), index=True, nullable=False)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("documents.id"), index=True, nullable=False
+    )
     type: Mapped[str] = mapped_column(String(64), nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -134,25 +144,33 @@ class DocumentFindings(Base):
     sample_offsets: Mapped[list | None] = mapped_column(JSON, nullable=True)
     checksum_valid: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
+
 class IndexManifest(Base):
     __tablename__ = "index_manifest"
-    project_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("projects.id"), primary_key=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), primary_key=True
+    )
     embed_model: Mapped[str] = mapped_column(String(255), nullable=False)
     embed_dim: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     indexed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
 class Jobs(Base):
     __tablename__ = "jobs"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("projects.id"), index=True, nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), index=True, nullable=False
+    )
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     progress_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     arq_job_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class PromptVersions(Base):
@@ -167,7 +185,9 @@ class PromptVersions(Base):
 class ProjectProfiles(Base):
     __tablename__ = "project_profiles"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("projects.id"), index=True, nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), index=True, nullable=False
+    )
     profile: Mapped[dict] = mapped_column(JSON, nullable=False)
     overall_confidence: Mapped[str] = mapped_column(String(16), nullable=False)
     model: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -183,7 +203,10 @@ class Screenings(Base):
             name="ck_screenings_positive_version",
         ),
         CheckConstraint(
-            ("status IN ('pending', 'running', 'ready_for_review', 'failed')"),
+            (
+                "status IN "
+                "('pending', 'running', 'ready_for_review', 'failed')"
+            ),
             name="ck_screenings_status",
         ),
         CheckConstraint(

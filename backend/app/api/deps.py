@@ -7,8 +7,8 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
-from arq import ArqRedis
 import httpx
+from arq import ArqRedis
 from fastapi import Depends, HTTPException, Request
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession

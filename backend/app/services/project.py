@@ -79,13 +79,12 @@ class ProjectService:
                 collection_name=f"chunks_{project.id}",
                 field_name="text",
                 field_schema=qdrant_models.TextIndexParams(
-                    type="text",
+                    type=qdrant_models.TextIndexType.TEXT,
                     tokenizer=qdrant_models.TokenizerType.WORD,
                     min_token_len=2,
                     max_token_len=20,
                     lowercase=True,
                 ),
-
             )
 
         await self.session.commit()

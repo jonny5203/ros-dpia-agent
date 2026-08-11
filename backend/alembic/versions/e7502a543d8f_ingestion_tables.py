@@ -5,17 +5,17 @@ Revises: 1e152befd6b3
 Create Date: 2026-07-22 02:03:26.110323
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'e7502a543d8f'
-down_revision: Union[str, Sequence[str], None] = '1e152befd6b3'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "e7502a543d8f"
+down_revision: str | Sequence[str] | None = "1e152befd6b3"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -33,8 +33,20 @@ def upgrade() -> None:
     op.create_table(
         "chunks",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.id"), nullable=False, index=True),
-        sa.Column("document_id", sa.Uuid(), sa.ForeignKey("documents.id"), nullable=False, index=True),
+        sa.Column(
+            "project_id",
+            sa.Uuid(),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "document_id",
+            sa.Uuid(),
+            sa.ForeignKey("documents.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column("page", sa.Integer(), nullable=True),
         sa.Column("section_title", sa.String(512), nullable=True),
@@ -49,7 +61,13 @@ def upgrade() -> None:
     op.create_table(
         "document_findings",
         sa.Column("id", sa.Uuid(), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("document_id", sa.Uuid(), sa.ForeignKey("documents.id"), nullable=False, index=True),
+        sa.Column(
+            "document_id",
+            sa.Uuid(),
+            sa.ForeignKey("documents.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("type", sa.String(64), nullable=False),
         sa.Column("category", sa.String(32), nullable=False),
         sa.Column("severity", sa.String(16), nullable=False),
@@ -72,7 +90,13 @@ def upgrade() -> None:
     op.create_table(
         "jobs",
         sa.Column("id", sa.Uuid(), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.id"), nullable=False, index=True),
+        sa.Column(
+            "project_id",
+            sa.Uuid(),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("kind", sa.String(64), nullable=False),
         sa.Column("status", sa.String(32), nullable=False),
         sa.Column("progress_pct", sa.Integer(), nullable=False),
@@ -100,4 +124,3 @@ def downgrade() -> None:
     op.drop_column("documents", "acked_at")
     op.drop_column("documents", "acked_by")
     op.drop_column("documents", "max_severity")
-

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import io
+
 from app.ingestion.parser.base import Parser
 from app.ingestion.types import ParsedDocument, ParsedSection
 

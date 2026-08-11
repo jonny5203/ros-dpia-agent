@@ -1,7 +1,8 @@
 """Integration test: server-side BM25 contract (1.13+ shape).
 
 Locks the contract that:
-- We declare a payload text index with modifier=IDF
+- We declare a named sparse vector with modifier=IDF
+- We declare a word-tokenized payload text index
 - We query with a raw string, using="bm25"
 - Qdrant tokenizes payload.text server-side and returns matches
 
@@ -38,17 +39,19 @@ async def test_server_side_bm25_returns_match(qdrant):
             collection_name=coll,
             vectors_config={"dense": qm.VectorParams(size=4, distance=qm.Distance.COSINE)},
             sparse_vectors_config={
-                "bm25": qm.SparseVectorParams(index=qm.SparseIndexParams())
+                "bm25": qm.SparseVectorParams(
+                    index=qm.SparseIndexParams(),
+                    modifier=qm.Modifier.IDF,
+                )
             },
         )
         await qdrant.create_payload_index(
             collection_name=coll,
             field_name="text",
             field_schema=qm.TextIndexParams(
-                type="text",
+                type=qm.TextIndexType.TEXT,
                 tokenizer=qm.TokenizerType.WORD,
                 lowercase=True,
-                modifier=qm.TranslationModifier.IDF,
             ),
         )
         await qdrant.upsert(collection_name=coll, points=[
@@ -79,13 +82,19 @@ async def test_bm25_returns_empty_when_no_match(qdrant):
         await qdrant.create_collection(
             collection_name=coll,
             vectors_config={"dense": qm.VectorParams(size=4, distance=qm.Distance.COSINE)},
-            sparse_vectors_config={"bm25": qm.SparseVectorParams(index=qm.SparseIndexParams())},
+            sparse_vectors_config={
+                "bm25": qm.SparseVectorParams(
+                    index=qm.SparseIndexParams(),
+                    modifier=qm.Modifier.IDF,
+                )
+            },
         )
         await qdrant.create_payload_index(
             collection_name=coll, field_name="text",
             field_schema=qm.TextIndexParams(
-                type="text", tokenizer=qm.TokenizerType.WORD,
-                lowercase=True, modifier=qm.TranslationModifier.IDF,
+                type=qm.TextIndexType.TEXT,
+                tokenizer=qm.TokenizerType.WORD,
+                lowercase=True,
             ),
         )
         await qdrant.upsert(collection_name=coll, points=[

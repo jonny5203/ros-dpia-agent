@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models import DocumentFindings
+
 
 class FindingRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -14,7 +18,7 @@ class FindingRepository:
 
     async def list_findings_for_document(self, document_id: UUID) -> list[DocumentFindings]:
         stmt = select(DocumentFindings).where(DocumentFindings.document_id == document_id)
-        return ((await self.session.execute(stmt)).scalars().all())
+        return list((await self.session.execute(stmt)).scalars().all())
 
     async def delete_findings_for_document(self, document_id: UUID) -> None:
         stmt = select(DocumentFindings).where(DocumentFindings.document_id == document_id)

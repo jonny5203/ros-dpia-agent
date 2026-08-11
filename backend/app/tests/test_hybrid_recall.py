@@ -30,13 +30,19 @@ async def qdrant_with_data():
     await client.create_collection(
         collection_name=coll,
         vectors_config={"dense": qm.VectorParams(size=4, distance=qm.Distance.COSINE)},
-        sparse_vectors_config={"bm25": qm.SparseVectorParams(index=qm.SparseIndexParams())},
+        sparse_vectors_config={
+            "bm25": qm.SparseVectorParams(
+                index=qm.SparseIndexParams(),
+                modifier=qm.Modifier.IDF,
+            )
+        },
     )
     await client.create_payload_index(
         collection_name=coll, field_name="text",
         field_schema=qm.TextIndexParams(
-            type="text", tokenizer=qm.TokenizerType.WORD,
-            lowercase=True, modifier=qm.TranslationModifier.IDF,
+            type=qm.TextIndexType.TEXT,
+            tokenizer=qm.TokenizerType.WORD,
+            lowercase=True,
         ),
     )
 

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import io
 
-import pytest
-
 from app.ingestion.parser.pdf import PypdfFallbackParser, parse_pdf
 
 

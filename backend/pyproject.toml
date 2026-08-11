@@ -40,6 +40,7 @@ dev = [
   "pytest>=8",
   "pytest-asyncio>=0.24",
   "reportlab>=4.0",
+  "httpx2==2.5.0",
 ]
 
 [build-system]

@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import io
 import re
+
 from app.ingestion.parser.base import Parser
 from app.ingestion.types import ParsedDocument, ParsedSection
+
 
 class DocxParser(Parser):
     name = "python-docx"
@@ -16,7 +19,7 @@ class DocxParser(Parser):
         current_path: list[str] = []
 
         for para in doc.paragraphs:
-            style = para.style.name or ""
+            style = para.style.name if para.style is not None else ""
             m = self._HEADING.match(style)
             text = para.text.strip()
 
@@ -25,7 +28,7 @@ class DocxParser(Parser):
 
             if m:
                 level = int(m.group(1))
-                current_path = current_path[: level - 1] + [text]
+                current_path = [*current_path[: level - 1], text]
                 continue
             sections.append(ParsedSection(
                 text=text,

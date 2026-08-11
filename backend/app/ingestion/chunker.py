@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from uuid import NAMESPACE_URL, uuid5
 
+import tiktoken
+
 from app.ingestion.types import Chunk, ParsedDocument, ParsedSection
 
 CHUNK_NAMESPACE = uuid5(NAMESPACE_URL, "kommune-dpia-chunks")
@@ -10,8 +12,7 @@ CHUNK_NAMESPACE = uuid5(NAMESPACE_URL, "kommune-dpia-chunks")
 CHUNK_TOKENS = 800
 CHUNK_OVERLAP = 150
 
-def _encoder_for(model: str) -> "tiktoken.Encoding":
-    import tiktoken
+def _encoder_for(model: str) -> tiktoken.Encoding:
     return tiktoken.get_encoding("cl100k_base")
 
 def _split_section(section: ParsedSection, enc) -> list[tuple[int, int, str]]:
@@ -71,5 +72,4 @@ def chunk_document(parsed: ParsedDocument, *, document_id, project_id) -> list[C
             )
             idx += 1
     return chunks
-
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.ingestion.types import ParsedDocument
 
+
 class Parser:
     """Common contract for every format parser.
 

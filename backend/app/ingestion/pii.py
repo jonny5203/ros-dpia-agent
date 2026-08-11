@@ -29,10 +29,10 @@ def _mod11_digits(text: str) -> list[tuple[str, int, int, bool]]:
     weights2 = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
     for m in re.finditer(r"\b\d{11}\b", text):
         digits = [int(c) for c in m.group(0)]
-        c1 = sum(w * d for w,d in zip(weights1, digits[:9])) % 11
+        c1 = sum(w * d for w, d in zip(weights1, digits[:9], strict=True)) % 11
         ctrl1 = 0 if c1 == 0 else 11 - c1
         ok1 = ctrl1 == digits[9]
-        c2 = sum(w * d for w, d in zip(weights2, digits[:10])) % 11
+        c2 = sum(w * d for w, d in zip(weights2, digits[:10], strict=True)) % 11
         ctrl2 = 0 if c2 == 0 else 11 - c2
         ok2 = ctrl2 == digits[10]
         valid = ok1 and ok2 and c1 != 1 and c2 != 1
@@ -135,4 +135,3 @@ def scan(parsed: ParsedDocument) -> ScanResult:
     )
 
     return ScanResult(findings=findings, has_critical=has_critical)
-

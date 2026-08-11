@@ -15,15 +15,17 @@ from app.workers.jobs import analyze_project, ingest_document
 
 
 async def on_startup(ctx: dict[str, Any]) -> None:
-    """ Build heavy clients once per worker process. This is shared across jobs via ctx(context). """
-    from app.ai.providers.openrouter import OpenRouterClient
+    """Build heavy clients once per worker and share them with jobs through ``ctx``."""
     from qdrant_client import AsyncQdrantClient
+
+    from app.ai.providers.openrouter import OpenRouterClient
     from app.services.storage import StorageService
 
     s = get_settings()
     ctx["openrouter"] = OpenRouterClient(s)
     ctx["qdrant"] = AsyncQdrantClient(url=s.qdrant_url)
     ctx["storage"] = StorageService(s)
+
 
 async def on_shutdown(ctx: dict[str, Any]) -> None:
     await ctx["openrouter"].close()

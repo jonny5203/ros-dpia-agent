@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from app.ingestion.parser.base import Parser
 from app.ingestion.types import ParsedDocument, ParsedSection
 
@@ -24,8 +25,15 @@ class MarkdownParser(Parser):
                 text=d.page_content,
                 section_title=d.metadata.get("h3") or d.metadata.get("h2") or d.metadata.get("h1"),
                 section_path=" > ".join(
-                    v for v in (d.metadata.get("h1"), d.metadata.get("h2"), d.metadata.get("h3")) if v
-                ) or None,
+                    value
+                    for value in (
+                        d.metadata.get("h1"),
+                        d.metadata.get("h2"),
+                        d.metadata.get("h3"),
+                    )
+                    if value
+                )
+                or None,
             )
             for d in docs
         ]

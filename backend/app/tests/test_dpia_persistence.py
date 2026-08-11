@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy import Table
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Screenings
@@ -156,7 +157,7 @@ def _read_payload(
 
 
 def test_screenings_metadata_enforces_ownership_and_versions() -> None:
-    table = Screenings.__table__
+    table = cast(Table, Screenings.__table__)
     constraint_names = {
         constraint.name for constraint in table.constraints if constraint.name is not None
     }

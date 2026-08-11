@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ChunkRef(BaseModel):
     """ Model that references a chunk passed back from RAF queries """

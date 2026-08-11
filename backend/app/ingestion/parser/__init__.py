@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 from app.ingestion.types import ParsedDocument
-from .pdf import parse_pdf
+
 from .docx import DocxParser
-from .xlsx import XlsxParser
-from .markdown import MarkdownParser
 from .image import ImageParser
+from .markdown import MarkdownParser
+from .pdf import parse_pdf
+from .xlsx import XlsxParser
 
 _PARSERS = {
     ".pdf": lambda b, f: parse_pdf(b, f),

@@ -6,11 +6,12 @@ from docx import Document
 
 from app.ingestion.parser.docx import DocxParser
 
+
 def _docx_bytes(paragraphs: list[tuple[str, str]]):
     """ Build a DOCX in memory from (style, text) pairs. """
     doc = Document()
     for style, text in paragraphs:
-        p = doc.add_paragraph(text, style=style)
+        doc.add_paragraph(text, style=style)
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()

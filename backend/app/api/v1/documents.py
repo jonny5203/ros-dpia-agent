@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from app.schemas.document import UploadResponse
 from arq import ArqRedis
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +11,7 @@ from app.api.deps import CurrentUser, get_arq_pool, get_current_user, get_sessio
 from app.db.models import Documents
 from app.repositories import UserRepository
 from app.schemas import DocumentRead
+from app.schemas.document import UploadResponse
 from app.services.document import DocumentService
 from app.services.storage import StorageService
 
@@ -32,7 +32,7 @@ def _to_read(doc: Documents) -> DocumentRead:
         uploaded_at=doc.uploaded_at,
     )
 
-@router.post("/{project_id}/documents", response_model=DocumentRead, status_code=201)
+@router.post("/{project_id}/documents", response_model=UploadResponse, status_code=201)
 async def upload_document(
     project_id: UUID,
     file: UploadFile = File(...),
@@ -40,7 +40,7 @@ async def upload_document(
     session: AsyncSession = Depends(get_session),
     storage: StorageService = Depends(get_storage),
     arq_pool: ArqRedis = Depends(get_arq_pool),
-) -> DocumentRead:
+) -> UploadResponse:
     content = await file.read()
     svc = DocumentService(session, storage)
 

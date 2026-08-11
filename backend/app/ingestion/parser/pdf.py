@@ -23,12 +23,11 @@ class DoclingPdfParser(Parser):
         # Imported lazily so the module imports cleanly in tests that don't
         # need Docling's (heavy) torch stack.
         from docling.document_converter import DocumentConverter
-        from docling.datamodel.document import InputDocument
+        from docling_core.types.io import DocumentStream
 
-        doc_stream = InputDocument(
+        doc_stream = DocumentStream(
+            name=filename or "input.pdf",
             stream=io.BytesIO(data),
-            filename=filename or "input.pdf",
-            format="pdf",  # docling auto-detects; pin for speed
         )
         conv = DocumentConverter()
         result = conv.convert(doc_stream)

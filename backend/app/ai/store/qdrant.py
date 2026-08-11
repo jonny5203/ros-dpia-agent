@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient
@@ -60,14 +59,17 @@ async def hybrid_query(
         with_payload=True,
     )
 
-    return [
-        {
-            "chunk_id": p.payload.get("chunk_id"),
-            "document_id": p.payload.get("document_id"),
-            "page": p.payload.get("page"),
-            "section_title": p.payload.get("section_title"),
-            "text": p.payload.get("text"),
-            "score": p.score,
-        }
-        for p in resp.points
-    ]
+    results: list[dict[str, Any]] = []
+    for point in resp.points:
+        payload = point.payload or {}
+        results.append(
+            {
+                "chunk_id": payload.get("chunk_id"),
+                "document_id": payload.get("document_id"),
+                "page": payload.get("page"),
+                "section_title": payload.get("section_title"),
+                "text": payload.get("text"),
+                "score": point.score,
+            }
+        )
+    return results

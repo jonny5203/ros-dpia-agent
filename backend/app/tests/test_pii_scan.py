@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from app.ingestion.pii import LEXICON_VERSION, scan
 from app.ingestion.types import ParsedDocument, ParsedSection
 

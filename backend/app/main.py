@@ -37,7 +37,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     )
     logger.info("Starting %s (env=%s)", settings.app_name, settings.env)
     if not settings.openrouter_api_key_value:
-        logger.warning("OPENROUTER_API_KEY is not set — AI stages will fail until it is finally set.")
+        logger.warning(
+            "OPENROUTER_API_KEY is not set — AI stages will fail until it is finally set."
+        )
     try:
         yield
     finally:

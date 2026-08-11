@@ -25,8 +25,8 @@ def pytest_sessionstart(session):
     factory for one returning an AsyncMock so lifespan completes instantly
     and routes that need the pool get a mock via app.state.arq_pool.
     """
-    from app.main import create_app  # noqa: F401  (ensures module import patches take)
     import app.main as main_module
+    from app.main import create_app  # noqa: F401  (ensures module import patches take)
 
     fake_pool = AsyncMock()
     fake_pool.close = AsyncMock()

@@ -1,33 +1,33 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
-from app.ai.providers.openrouter import OpenRouterClient
+from arq import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings.service import embed_chunks
+from app.ai.providers.openrouter import OpenRouterClient
 from app.ai.store.qdrant import hybrid_query
-from app.db.models import Documents
+from app.api.deps import (
+    CurrentUser,
+    ProjectContext,
+    get_arq_pool,
+    get_current_user,
+    get_openrouter,
+    get_project_context,
+    get_qdrant,
+    get_session,
+)
 from app.repositories.chunk import ChunkRepository
 from app.repositories.document import DocumentRepository
 from app.repositories.finding import FindingRepository
 from app.repositories.job import JobRepository
 from app.repositories.user import UserRepository
 from app.schemas import ChunkRead, DocumentWithFindings, FindingRead, JobRead
-from qdrant_client import AsyncQdrantClient
-
-from app.api.deps import (
-    CurrentUser,
-    get_arq_pool,
-    get_current_user,
-    get_qdrant,
-    get_session,
-    ProjectContext,
-    get_openrouter,
-    get_project_context,
-)
-from arq import ArqRedis
+from app.schemas.finding import Severity
 
 router = APIRouter(prefix="/v1", tags=["ingest"])
 
@@ -78,7 +78,7 @@ async def acknowledge_findings(
         document_id=doc.id,
         filename=doc.filename,
         processing_status="acknowledged",
-        max_severity=doc.max_severity,
+        max_severity=cast(Severity | None, doc.max_severity),
         finding=[FindingRead.model_validate(f) for f in findings],
         acked_at=doc.acked_at.isoformat() if doc.acked_at else None,
     )
@@ -125,4 +125,3 @@ async def search(
         query_vector=query_vector,
         limit=10,
     )
-
