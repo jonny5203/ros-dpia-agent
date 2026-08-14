@@ -255,6 +255,7 @@ class Screenings(Base):
             "version",
             name="uq_screenings_project_version",
         ),
+        UniqueConstraint("job_id", name="uq_screenings_job_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -271,6 +272,11 @@ class Screenings(Base):
     requested_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="SET NULL"),
         nullable=True,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -14,7 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.ai.providers.openrouter import OpenRouterClient
-from app.api.v1 import admin, analysis, documents, health, ingest, projects
+from app.api.v1 import admin, analysis, documents, dpia, health, ingest, projects
 from app.auth.router import router as auth_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import register_exception_handlers
@@ -82,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, prefix="/api")
     app.include_router(projects.router, prefix="/api")
     app.include_router(analysis.router, prefix="/api")
+    app.include_router(dpia.router, prefix="/api")
     app.include_router(documents.router, prefix="/api")
     app.include_router(ingest.router, prefix="/api")
     app.include_router(auth_router)

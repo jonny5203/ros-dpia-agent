@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -63,6 +63,15 @@ class DpiaEvidenceSnapshot(BaseModel):
         return self
 
 
+class DpiaRunAccepted(BaseModel):
+    """Returns identifiers for a persisted run and its pollable job."""
+
+    run_id: UUID
+    job_id: UUID
+    version: int = Field(gt=0)
+    status: Literal["pending"] = "pending"
+
+
 class DpiaRunStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
@@ -79,6 +88,7 @@ class DpiaScreeningRunRead(BaseModel):
     id: UUID
     project_id: UUID
     requested_by: UUID | None
+    job_id: UUID | None = None
     version: int = Field(gt=0)
     status: DpiaRunStatus
     evidence_snapshot: DpiaEvidenceSnapshot | None
@@ -120,7 +130,6 @@ class DpiaScreeningRunRead(BaseModel):
             if any(
                 value is not None
                 for value in (
-                    self.evidence_snapshot,
                     self.result,
                     self.conclusion,
                     self.model,

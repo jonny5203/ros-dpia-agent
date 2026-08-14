@@ -42,6 +42,7 @@ OTHER_PROJECT_ID = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 DOCUMENT_ID = UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
 CHUNK_ID = UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
 USER_ID = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+JOB_ID = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
 NOW = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
 
 
@@ -54,6 +55,9 @@ class FakeRows:
 
     def all(self) -> list[Screenings]:
         return self.rows
+
+    def scalar_one_or_none(self) -> Screenings | None:
+        return self.rows[0] if self.rows else None
 
 
 def _reference() -> ChunkRef:
@@ -126,6 +130,7 @@ def _run(
         id=uuid4(),
         project_id=PROJECT_ID,
         requested_by=USER_ID,
+        job_id=JOB_ID,
         version=1,
         status=status.value,
         rules_version="dpia-rules.v1",
@@ -145,6 +150,7 @@ def _read_payload(
         "version": 1,
         "status": status,
         "evidence_snapshot": None,
+        "job_id": JOB_ID,
         "result": None,
         "conclusion": None,
         "model": None,
@@ -169,16 +175,21 @@ def test_screenings_metadata_enforces_ownership_and_versions() -> None:
         "ck_screenings_rules_version",
         "ck_screenings_lifecycle",
         "uq_screenings_project_version",
+        "uq_screenings_job_id",
     } <= constraint_names
 
     project_foreign_key = next(iter(table.c.project_id.foreign_keys))
     requester_foreign_key = next(iter(table.c.requested_by.foreign_keys))
+    job_foreign_key = next(iter(table.c.job_id.foreign_keys))
 
     assert project_foreign_key.target_fullname == "projects.id"
     assert project_foreign_key.ondelete == "CASCADE"
     assert requester_foreign_key.target_fullname == "users.id"
     assert requester_foreign_key.ondelete == "SET NULL"
     assert table.c.requested_by.nullable is True
+    assert job_foreign_key.target_fullname == "jobs.id"
+    assert job_foreign_key.ondelete == "SET NULL"
+    assert table.c.job_id.nullable is True
 
 
 def test_ready_run_parses_json_into_typed_contracts() -> None:
@@ -293,6 +304,7 @@ async def test_create_pending_locks_project_before_allocating_version() -> None:
 
     run = await repository.create_pending(
         project_id=PROJECT_ID,
+        job_id=JOB_ID,
         rules_version=" dpia-rules.v1 ",
         requested_by=USER_ID,
     )
@@ -309,6 +321,8 @@ async def test_create_pending_locks_project_before_allocating_version() -> None:
     assert run.rules_version == "dpia-rules.v1"
     raw_session.add.assert_called_once_with(run)
     raw_session.flush.assert_awaited_once()
+
+    assert run.job_id == JOB_ID
 
 
 @pytest.mark.asyncio
@@ -389,3 +403,31 @@ async def test_list_for_project_is_scoped_and_newest_first() -> None:
     rendered = str(statement)
     assert "screenings.project_id" in rendered
     assert "ORDER BY screenings.version DESC" in rendered
+
+
+def test_running_run_accepts_a_frozen_snapshot() -> None:
+    payload = _read_payload(status=DpiaRunStatus.RUNNING)
+    payload["evidence_snapshot"] = _snapshot()
+
+    run = DpiaScreeningRunRead.model_validate(payload)
+
+    assert run.status is DpiaRunStatus.RUNNING
+    assert run.evidence_snapshot == _snapshot()
+
+
+@pytest.mark.asyncio
+async def test_get_latest_for_project_is_scoped_and_newest_first() -> None:
+    newest = _run(status=DpiaRunStatus.READY_FOR_REVIEW)
+    newest.version = 4
+    raw_session = SimpleNamespace(execute=AsyncMock(return_value=FakeRows([newest])))
+
+    repository = ScreeningRepository(cast(AsyncSession, raw_session))
+
+    result = await repository.get_latest_for_project(PROJECT_ID)
+
+    assert result is newest
+    statement = raw_session.execute.await_args.args[0]
+    rendered = str(statement)
+    assert "screenings.project_id" in rendered
+    assert "ORDER BY screenings.version DESC" in rendered
+    assert "LIMIT" in rendered

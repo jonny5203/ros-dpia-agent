@@ -25,6 +25,7 @@ class ScreeningRepository:
         self,
         *,
         project_id: UUID,
+        job_id: UUID,
         rules_version: str,
         requested_by: UUID | None,
     ) -> Screenings:
@@ -49,6 +50,7 @@ class ScreeningRepository:
         run = Screenings(
             project_id=project_id,
             requested_by=requested_by,
+            job_id=job_id,
             version=next_version,
             status=DpiaRunStatus.PENDING.value,
             rules_version=clean_rules_version,
@@ -67,6 +69,22 @@ class ScreeningRepository:
             Screenings.id == run_id,
             Screenings.project_id == project_id,
         )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_latest_for_project(
+        self,
+        project_id: UUID,
+    ) -> Screenings | None:
+        """Return the newest persisted run belonging to exactly one project."""
+
+        statement = (
+            select(Screenings)
+            .where(Screenings.project_id == project_id)
+            .order_by(Screenings.version.desc())
+            .limit(1)
+        )
+
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 

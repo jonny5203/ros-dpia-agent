@@ -4,6 +4,7 @@ from app.schemas.document import DocumentRead, UploadResponse
 from app.schemas.dpia import (
     DpiaEvidenceSnapshot,
     DpiaEvidenceSnapshotEntry,
+    DpiaRunAccepted,
     DpiaRunStatus,
     DpiaScreeningRunRead,
 )
@@ -53,6 +54,7 @@ __all__ = [
     "DpiaCriterionResult",
     "DpiaEvidenceSnapshot",
     "DpiaEvidenceSnapshotEntry",
+    "DpiaRunAccepted",
     "DpiaRunStatus",
     "DpiaScreeningInput",
     "DpiaScreeningResult",
